@@ -27,3 +27,15 @@ PP*.woff2
 /explorations/
 /docs/research/
 /docs/articles/
+
+# Android build output and signing material (keys live in ~/.config/cleanframe-tv/)
+/android/.gradle/
+/android/.kotlin/
+/android/build/
+/android/app/build/
+/android/local.properties
+*.jks
+*.keystore
+keystore.properties
+*.apk
+*.aab
