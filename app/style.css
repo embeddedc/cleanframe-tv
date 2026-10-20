@@ -597,3 +597,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000}
 .is-font-switch .home .ph-name,.is-font-switch .home .clock,.is-font-switch .home .tile .label,.is-font-switch .home .u-label,.is-font-switch .home .app-focus-name,.is-font-switch .home .util-focus-label{animation:font-in 160ms linear}
 @keyframes font-in{from{opacity:0}}
 @media(prefers-reduced-motion:reduce){.is-font-switch .home .ph-name,.is-font-switch .home .clock,.is-font-switch .home .tile .label,.is-font-switch .home .u-label,.is-font-switch .home .app-focus-name,.is-font-switch .home .util-focus-label{animation-duration:120ms}}
+
+/* Photo mode (replaces Samsung Art Mode): only the photograph and the clock remain. */
+.stage .utils,.stage .dock,.stage .ph-scene,.stage .ut-lens,.stage .cue,.stage .dock-action,.stage .bg .scrim,.stage .bg .shade,.stage .bg .ph-dim,.stage .bg .ph-scrim,.stage .bg .ph-col,.stage .bg .ut-dim{transition:opacity .45s ease}
+.stage.is-photo-mode .utils,.stage.is-photo-mode .util-focus-label,.stage.is-photo-mode .app-focus-name,.stage.is-photo-mode .ut-lens,.stage.is-photo-mode .dock,.stage.is-photo-mode .cue,.stage.is-photo-mode .dock-action,.stage.is-photo-mode .ph-scene,.stage.is-photo-mode .bg .scrim,.stage.is-photo-mode .bg .shade,.stage.is-photo-mode .bg .ph-dim,.stage.is-photo-mode .bg .ph-scrim,.stage.is-photo-mode .bg .ph-col,.stage.is-photo-mode .bg .ut-dim{opacity:0!important;pointer-events:none}
+.photo-caption{position:absolute;right:140px;bottom:72px;max-width:900px;text-align:right;font-family:var(--font-ui-family),Manrope,sans-serif;font-weight:500;font-size:26px;line-height:1.35;color:#fffbf4;text-shadow:0 1px 2px rgba(14,10,6,.5),0 2px 10px rgba(14,10,6,.32);opacity:0;transition:opacity .45s ease;pointer-events:none}
+.stage.is-photo-mode .photo-caption{opacity:.9}
