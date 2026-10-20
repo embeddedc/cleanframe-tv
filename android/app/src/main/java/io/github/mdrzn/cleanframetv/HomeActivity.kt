@@ -175,12 +175,15 @@ class HomeActivity : Activity() {
         return packageManager.resolveActivity(home, PackageManager.MATCH_DEFAULT_ONLY)?.activityInfo?.packageName == packageName
     }
 
-    /** `--ez debug true|false` turns chrome://inspect access on or off (always on for debug builds). */
+    /**
+     * `--ez debug true|false` turns chrome://inspect access and the remote-button service's keycode
+     * logging on or off. Debug builds always allow chrome://inspect.
+     */
     private fun takeDebug(intent: Intent?) {
         val prefs = getSharedPreferences("cleanframe", MODE_PRIVATE)
-        if (intent?.hasExtra("debug") == true) prefs.edit().putBoolean("debug", intent.getBooleanExtra("debug", false)).apply()
+        if (intent?.hasExtra(DEBUG) == true) prefs.edit().putBoolean(DEBUG, intent.getBooleanExtra(DEBUG, false)).apply()
         val debuggable = applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
-        WebView.setWebContentsDebuggingEnabled(debuggable || prefs.getBoolean("debug", false))
+        WebView.setWebContentsDebuggingEnabled(debuggable || prefs.getBoolean(DEBUG, false))
     }
 
     /** `adb shell am start -n <pkg>/.HomeActivity --es config '<json>'` — see README. */
@@ -208,5 +211,6 @@ class HomeActivity : Activity() {
 
     companion object {
         const val HOST = "appassets.androidplatform.net"
+        const val DEBUG = "debug"
     }
 }

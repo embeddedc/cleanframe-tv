@@ -1,6 +1,6 @@
 # Validation
 
-## Offline app changes
+## Interface checks
 
 ```sh
 npm ci
@@ -9,27 +9,37 @@ npx playwright install chromium
 npm run check:browser
 ```
 
-`check` validates JavaScript syntax, package identity/version and bundled resources. It does not contact a TV. `check:browser` uses a fresh Playwright Chromium profile and its own loopback preview. It checks List and Dock navigation, single focus, Home controls, grouped Settings, explicit OK application, applied checkmarks, pending-load cancellation, retries, persistence, all fifteen wallpaper bundles, available fonts, 720p scaling, migrations, the Home editor and honest browser-only launch errors. Reports and screenshots are in ignored `.local/qa/`. A failed assertion exits with a nonzero status.
+`check` validates JavaScript syntax, the Android adapter (`scripts/test-device.mjs`: brand mapping, catalogue, launch/close results, configuration, browser fallback) and the bundled resources. `check:browser` runs the real interface in a fresh Playwright Chromium profile with a fake `window.CleanFrameAndroid` bridge and its own loopback preview. It covers List and Dock navigation, single focus, Home controls, Photo mode, grouped Settings including the Android TV group, explicit OK application, applied checkmarks, pending-load cancellation, retries, persistence, all fifteen wallpaper bundles and the photo source switch, fonts, the 12/24-hour clock, 720p scaling, migrations, the Home editor, HDMI inputs, hold-to-close and honest browser-only errors. Reports and screenshots go to ignored `.local/qa/`. A failed assertion exits with a nonzero status. Set `CLEANFRAME_PUBLIC_FONTS=1` to exclude any local private fonts.
 
-For public-source validation, set `CLEANFRAME_PUBLIC_FONTS=1` when running `check:browser`; the preview helper then excludes the local proprietary overlay. Run `npm run check:public` for the bounded source/history checks and `npm run export:public` for a widget that always excludes private fonts. The GitHub Actions workflow uses this public path. Browser/package checks do not clear third-party asset rights or validate TV behaviour.
-
-If the default browser/cache location is unavailable, use a writable local path for both commands:
+If the default browser cache is unavailable, use a writable path for both commands:
 
 ```sh
 PLAYWRIGHT_BROWSERS_PATH="$PWD/.local/playwright" npx playwright install chromium
 PLAYWRIGHT_BROWSERS_PATH="$PWD/.local/playwright" npm run check:browser
 ```
 
-For manual review, use `npm run dev` and open `/home/`. Use the arrow keys, Enter and Escape. Check the changed flow in List and Dock, on Photo, Light and Dark backgrounds. Check a single app and all nine apps when changing app layout. In Settings, browse without applying, apply with OK, return with both Back routes, and cancel a pending resource load. Check editor placement/undo, wallpaper rotation pausing during panels/background time, and restored focus on return when those flows change. Browser preferences are separate from TV preferences.
+For manual review, use `npm run dev` and open `/home/` with the arrow keys, Enter and Escape. Check a changed flow in List and Dock, on Photo, Light and Dark backgrounds, with one app and with nine. In Settings, browse without applying, apply with OK, return with Back, and cancel a pending load. Browser preferences are separate from the TV's.
 
-## Physical TV checks
+## Android checks
 
-Run these only under a task that includes TV testing. Announce any installation or launch first, then follow `development.md`. SDK success alone is not a visible result. Ask Nathan to confirm the normal remote behaviour and record the version, firmware, result and any open checks in `tv-status.md`.
+```sh
+cd android
+./gradlew testReleaseUnitTest assembleRelease
+```
 
-1. Move in both directions through each layout and Settings; check focus, response and readable labels from the sofa.
-2. Launch Netflix/YouTube, press Home to return, and check the selected app. Treat streaming apps' own Back handling separately.
-3. Check Art Mode, Other apps, TV settings and Settings → Samsung → Samsung Home; verify the actual visible destinations.
-4. Check saved appearance/app order/wallpaper after relaunch. Check timed rotation pauses while a panel is open or the app is hidden.
-5. Test normal power-on after a streaming app and the usual Art Mode routine only when that work is included. Preserve the native Home recovery baseline and restore it before any uninstall/identity change.
+The unit tests cover the catalogue rules (deduplication, TV activities, hidden system entries, HDMI filtering and naming), configuration and button parsing, Bing feed parsing and the photo ink decisions. `assembleRelease` also runs Android lint's release checks.
 
-The current pending results are listed at the top of `tv-status.md`. Browser CPU throttling is a development comparison, not a TV performance measurement.
+## On a TV
+
+These checks need a TV or box you are allowed to experiment on. Keep the previous launcher installed and note how to restore it ([install guide](install.md#going-back-or-uninstalling)).
+
+1. Press Home from another app: CleanFrame TV appears, with the focus where you left it.
+2. Move through both layouts and Settings with the remote; check focus, response and readable labels from the sofa.
+3. Open each Home app and every HDMI input, then press Home to return. Hold OK on an app and confirm "Closed …"; `adb shell pidof <package>` shows whether its process ended.
+4. Photo mode: enter, then any key returns with focus restored.
+5. With Photo source set to Bing, check that photos arrive (`adb logcat -s CleanFrameTV:I` shows "Bing photo ready") and rotation works. With built-in wallpapers, no requests should be made.
+6. Restart the TV: it should come up on CleanFrame TV, with saved appearance, Home order and photo.
+7. If remote buttons are assigned, press each with the physical remote.
+8. `adb shell dumpsys meminfo io.github.mdrzn.cleanframetv` and `adb logcat` for crashes (`AndroidRuntime`, `chromium` errors).
+
+Record the device, Android version, WebView version and results when reporting.

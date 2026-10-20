@@ -8,15 +8,13 @@ permissions:
   contents: read
 
 jobs:
-  public-source:
+  interface:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
       CLEANFRAME_PUBLIC_FONTS: '1'
     steps:
       - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
       - uses: actions/setup-node@v7
         with:
           node-version: '22'
@@ -26,7 +24,20 @@ jobs:
           python-version: '3.12'
       - run: npm ci
       - run: npm run check
-      - run: npm run check:public
       - run: npx playwright install --with-deps chromium
       - run: npm run check:browser
-      - run: npm run export:public
+
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/wrapper-validation@v6
+      - uses: gradle/actions/setup-gradle@v6
+      # No release key in CI: the release APK is signed with the debug key.
+      - run: ./gradlew testReleaseUnitTest assembleRelease
+        working-directory: android

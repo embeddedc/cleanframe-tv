@@ -1,101 +1,123 @@
-# CleanFrame
+# CleanFrame TV
 
-A quieter home screen for Samsung The Frame. Your apps, a photograph and the time, with an interface made for the TV remote.
+A quieter home screen for Android TV. Your apps and HDMI inputs, a photograph and the time, with an interface made for the TV remote.
 
-![CleanFrame browser preview using the bundled Manrope font](docs/images/cleanframe-dock.jpg)
+![CleanFrame TV: List layout over a photograph, with the clock and Home controls](docs/images/cleanframe-tv-list.jpg)
 
-I built CleanFrame for one TV: my own Samsung The Frame, running Tizen. I'm sharing the code and setup notes as a starting point for other people to build on.
+CleanFrame TV is an Android TV port of [CleanFrame](https://github.com/nthnclrk/CleanFrame) by Nathan Clark, a home screen originally built for Samsung The Frame (Tizen). It keeps CleanFrame's interface and wraps it in a small Android launcher. All Samsung-specific code has been removed.
 
-**Use it at your own risk.** Most of the work has gone into making it work well on my TV. Very little has gone into making it portable. The setup scripts reflect my computer, TV and firmware, so expect to adapt them and test the result on your own hardware.
+**Use it at your own risk.** It has been tested on one TV. It replaces your home screen, so keep the [recovery steps](#going-back) at hand the first time you install it.
 
-I highly recommend forking it and building on top of it, ideally with a coding agent that can help you understand and adapt the setup. Start with the browser preview, make the interface your own, then work through TV installation when you're ready. Native Home/startup changes need particular care; the setup guide covers the risks and recovery steps.
+## What it does
 
-## Try the interface
+- **List or Dock layout**, with icons, names or both, over a photograph or a light/dark background.
+- **Photos:** fifteen built-in wallpapers, or the **Bing photo of the day** (optional, see [Network and privacy](#network-and-privacy)), rotating each time Home opens or every 5, 15 or 60 minutes.
+- **Photo mode** hides everything except the photo, the clock and the photo's caption. Any key brings Home back.
+- **HDMI inputs as apps:** each HDMI port can sit on Home like an app (for example "Nintendo Switch" or "PC") and opens that input directly.
+- **All apps** lists installed TV apps and inputs. Choose up to nine for Home and arrange them with the remote.
+- **Hold OK on an app to close it** and free its memory. A short press opens it.
+- **Remote buttons (optional):** send vendor buttons that apps normally can't use, such as Xiaomi's Mi or Netflix key, to an app of your choice.
+- **24- or 12-hour clock**, defaulting to the TV's setting.
+- Back on Home does nothing, so you can't fall out of the launcher by accident.
 
-You need Node.js 22+ and Python 3.10+ to run the browser preview.
+![CleanFrame TV: Dock layout with glass focus](docs/images/cleanframe-tv-dock.jpg)
+
+## Tested hardware
+
+| Area | Result |
+| --- | --- |
+| Reference TV | Xiaomi Mi TV Q1 (MiTV-MOOQ1), Android TV 10, MediaTek MT9632, 1.8 GB RAM, 1080p interface on a 4K panel |
+| Verified there | Home button, remote navigation in List and Dock, launching apps, All apps with HDMI inputs, Photo mode, Bing photos, hold-to-close, Mi/Netflix button remapping |
+| Memory | About 165 MB PSS for the launcher including its WebView; about 70 MB of that is file-backed and reclaimable |
+| Other devices | Should run on Android TV 8.0 (API 26) and newer, but untested. Google TV restricts third-party launchers more and is untested. |
+
+Reports from other devices are welcome; see [Contribute](#contribute).
+
+## Install
+
+You need a computer with [ADB](https://developer.android.com/tools/adb) and debugging enabled on the TV: Settings → Device Preferences → About, select Build seven times, then turn on Developer options → USB debugging (on many TVs this also enables network ADB on port 5555).
 
 ```sh
-git clone https://github.com/nthnclrk/CleanFrame.git
-cd CleanFrame
+adb connect <tv-address>:5555
+adb install CleanFrameTV.apk
+adb shell cmd package set-home-activity io.github.mdrzn.cleanframetv/.HomeActivity
+adb shell input keyevent KEYCODE_HOME
+```
+
+CleanFrame TV should now appear whenever you press Home. The [install guide](docs/install.md) covers building the APK, naming inputs, choosing Home apps from the computer, remote buttons and troubleshooting.
+
+### Going back
+
+- On the TV: **Settings → Android TV → Previous launcher**.
+- From a computer, make another launcher the home screen again, for example Projectivy:
+
+  ```sh
+  adb shell cmd package set-home-activity com.spocky.projengmenu/.ui.home.MainActivity
+  ```
+
+  To return to the stock launcher later, note its name before installing CleanFrame TV:
+  `adb shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME`.
+- Uninstalling (`adb uninstall io.github.mdrzn.cleanframetv`) also hands Home back to another installed launcher.
+
+## Configure
+
+Everything can be changed with the remote in **Settings**: background and photo source, layout, clock, typography, focus style, Apps on Home, and the Android TV group (TV settings, previous launcher).
+
+The same preferences can be set from a computer, which is the easiest way to name HDMI inputs:
+
+```sh
+adb shell am start -n io.github.mdrzn.cleanframetv/.HomeActivity --es config '{
+  "inputNames": {"input.hw5": "Nintendo Switch", "input.hw6": "PC"},
+  "home": ["primevideo", "youtube", "jellyfin", "nintendoswitch"],
+  "layout": "list", "bg": "photo", "source": "bing", "clock": "24"
+}'
+```
+
+The [install guide](docs/install.md#configure-from-a-computer) lists every key and shows how to find input IDs.
+
+## Network and privacy
+
+CleanFrame TV uses the network for one thing: when **Background → Photo source** is set to **Bing photo of the day**, it downloads the latest photos from `www.bing.com` (at most every 12 hours, at 1920×1080, keeping the last eight on the TV). With the built-in wallpapers, which are the default, it makes no network requests. There are no accounts, analytics or ads. Bing photos are fetched for wallpaper use on your TV and are not redistributed with the app.
+
+The optional remote-button service is an Android accessibility service. Android lets such a service see key presses so it can catch the buttons you assign. It acts only on those, passes every other key through, stores nothing and cannot read the screen. It stays off unless you enable it.
+
+## Build from source
+
+You need JDK 21, the Android SDK (platform 36, build tools 36.1.0), Node.js 22+ and Python 3.10+.
+
+```sh
+git clone <this repository>
+cd cleanframe-tv
 npm ci
+npm run check            # web interface checks
+npm run android:build    # android/app/build/outputs/apk/release/app-release.apk
+```
+
+Without a release key the APK is signed with the debug key, which is fine for your own TV. Release signing is described in [development](docs/development.md#signing); keys always stay outside the repository.
+
+To try the interface in a browser without a TV:
+
+```sh
 npm run dev:public
 ```
 
-Open [localhost:4795/home/](http://localhost:4795/home/). Use the arrow keys, Enter and Escape, or click the controls. App launches and Samsung screens require a TV; the preview reports that limitation when you select them.
-
-The public preview uses the included Manrope, Geist and Newsreader fonts.
-
-## What you can change
-
-- Choose a List or Dock layout, with icons, names or both.
-- Use a photograph, light or dark background, with a simple 12-hour clock.
-- Adjust typography, focus and glass materials through the same Settings interface.
-- Choose and reorder Home apps; discover installed apps on the TV.
-- Select from fifteen wallpapers and save your preferences locally.
-
-The glass and blur are rendered ahead of time. The TV loads the finished images and uses transforms and opacity for focus feedback.
-
-## Use a coding agent
-
-Open this repo in a local coding agent and give it a bounded change:
-
-```text
-Read AGENTS.md, docs/development.md and docs/interaction-behaviour.md.
-Help me adapt CleanFrame. Start with the public-font browser preview.
-My first change is: <describe one change>.
-Preserve remote navigation, saved preferences and the ES5 runtime.
-Run the source checks and relevant browser checks. Show the result.
-This task is browser-only: do not connect to a TV, sign or install a
-package, or change Home/startup settings.
-```
-
-See [working with an agent](docs/for-agents.md) for the TV setup prompt and the distinction between UI work, app installation and native Home changes. An agent needs local computer access for TV work; a hosted chat cannot reach your TV merely by reading this repo.
-
-## Put it on a TV
-
-Use the staged [Samsung The Frame setup guide](docs/agent-tv-setup-guide.md) to understand the process used on my TV and adapt it to yours. It covers the remote's Developer Mode sequence, official Samsung tools, your own certificates and app identity, installation, visible checks and recovery.
-
-The signing and TV scripts are specific to my setup. Your agent will need to adapt the paths, signing profile, identity checks and installed-app IDs, then verify each stage with you. Installing the app and assigning the remote Home button are separate steps.
-
-| Area | Evidence and limits |
-| --- | --- |
-| Reference hardware | Samsung QA55LS03DAWXXY / LS03D, firmware 2130.0, Tizen 9.0, 32-bit ARM |
-| App installation | Signed installation and launch commands succeeded through 0.6.1. Latest rendering and remote feel still need physical observation. |
-| App launch and Home | Netflix/YouTube launch and physical Home from Netflix were confirmed on the reference setup. |
-| Still open | Normal power-on after streaming/Art Mode, corrected Smart Hub escape and native Art Mode destinations need definite physical checks. |
-| Other TVs | No compatibility claim. This is Tizen source; Android TV, Google TV, LG webOS and Roku need their own implementations. |
-
-The detailed [device record](docs/tv-status.md) separates observed results from SDK responses. Native Home/startup uses undocumented, guarded helpers; it is optional and can fail after firmware changes. Keep a recovery baseline before attempting that work. The app can be opened manually without it.
-
-## Develop and check
-
-```sh
-npm run check
-npx playwright install chromium
-CLEANFRAME_PUBLIC_FONTS=1 npm run check:browser
-npm run check:public
-npm run export:public
-```
-
-The browser checks use isolated Chromium profiles and a loopback preview. They never contact a TV. The public export creates `dist/CleanFrame-public-unsigned.wgt`, with public fonts and notices. It needs your own identity and signing before installation. It does not certify asset redistribution rights or device compatibility.
+Open [localhost:4795/home/](http://localhost:4795/home/) and use the arrow keys, Enter and Escape. Opening apps needs the TV; the preview says so.
 
 | Location | Purpose |
 | --- | --- |
-| `app/` | Current packaged UI and runtime assets |
-| `scripts/` | Preview, validation, asset generation and reference TV tools |
-| [Development](docs/development.md) / [testing](docs/testing.md) | Runtime map, preferences, checks and device boundaries |
-| [Assets](docs/assets.md) / [third-party notices](THIRD_PARTY_NOTICES.md) | Rendering recipes, font separation and asset provenance |
-| [Asset sources](docs/asset-sources.md) | Photo credits and verification of the bundled third-party assets |
-| `.local/`, `dist/` | Ignored private setup, recovery data, generated files and packages |
+| `app/` | The web interface (HTML, CSS, ES5 JavaScript), shared by the TV and the browser preview |
+| `app/device.js` | The only code that talks to Android, through the `window.CleanFrameAndroid` bridge |
+| `android/` | The Kotlin launcher: WebView host, app and input catalogue, Bing photos, remote buttons |
+| `scripts/` | Preview, checks and asset generation |
+| [Development](docs/development.md) / [testing](docs/testing.md) | How the pieces fit, debugging on a TV, checks |
+| [Interaction behaviour](docs/interaction-behaviour.md) | What each key does, screen by screen |
 
 ## Contribute
 
-Fork it, experiment and build something that suits your TV. If you find a useful fix or improve the setup instructions, contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before a larger change. Reports should include model, firmware and the observed result, with private identifiers removed.
+Issues and pull requests are welcome; read [CONTRIBUTING.md](CONTRIBUTING.md) first. Reports should include the TV or box model, the Android version and what you saw, with private details removed.
 
 ## Licence and credits
 
-CleanFrame's original code and documentation use the [MIT licence](LICENSE). Fonts, photographs and logos retain their own terms; read [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Paid Pangram binaries are excluded from Git and public exports. A local package may include them, so keep personal builds separate from public downloads.
+CleanFrame TV is based on [CleanFrame](https://github.com/nthnclrk/CleanFrame) by Nathan Clark. The interface and its design, the bundled wallpapers and their materials come from that project. The original code and this port use the [MIT licence](LICENSE). Fonts, photographs and logos keep their own terms; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-The [release review](docs/public-release.md) records the publication checks. Third-party assets retain the terms listed in their notices. CleanFrame is an independent project with no Samsung or streaming-service affiliation.
-
-[TV Detox](https://github.com/Ansub/tv-detox) is a useful example of making an agent-assisted TV project approachable. Its Android setup is a different implementation; the prompts and instructions here are written for CleanFrame and Tizen.
+CleanFrame TV is an independent project with no affiliation to Google, Xiaomi, Samsung, Microsoft (Bing) or any streaming service. Brand marks identify the services they belong to.
