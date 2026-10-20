@@ -1,10 +1,170 @@
 package io.github.mdrzn.cleanframetv
 
+import android.annotation.SuppressLint
 import android.app.Activity
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.graphics.Color
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.util.Log
+import android.view.KeyEvent
+import android.view.View
+import android.view.ViewGroup
+import android.webkit.ConsoleMessage
+import android.webkit.RenderProcessGoneDetail
+import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import androidx.webkit.WebViewAssetLoader
+import java.io.File
 
+/** The launcher: one full-screen WebView running the CleanFrame interface from app/. */
 class HomeActivity : Activity() {
+    private lateinit var catalog: AndroidCatalog
+    private lateinit var photos: Photos
+    private lateinit var feed: BingFeed
+    private lateinit var bridge: Bridge
+    private var web: WebView? = null
+    private var pageReady = false
+
+    private val packages = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) = event("cleanframe:apps-changed")
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        catalog = AndroidCatalog(this)
+        photos = Photos(this)
+        feed = BingFeed(this, photos) { event("cleanframe:photos-updated") }
+        bridge = Bridge(this, catalog, photos, feed)
+        takeConfig(intent)
+        createWebView()
+        registerReceiver(packages, IntentFilter().apply {
+            addAction(Intent.ACTION_PACKAGE_ADDED); addAction(Intent.ACTION_PACKAGE_REMOVED)
+            addAction(Intent.ACTION_PACKAGE_CHANGED); addAction(Intent.ACTION_PACKAGE_REPLACED); addDataScheme("package")
+        })
+    }
+
+    @SuppressLint("SetJavaScriptEnabled")
+    private fun createWebView() {
+        val loader = WebViewAssetLoader.Builder()
+            .setDomain(HOST)
+            .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
+            .addPathHandler("/photos/", WebViewAssetLoader.InternalStoragePathHandler(this, photos.root))
+            .addPathHandler("/icons/", WebViewAssetLoader.InternalStoragePathHandler(this, File(filesDir, "icons")))
+            .build()
+        val view = WebView(this)
+        view.setBackgroundColor(Color.BLACK)
+        view.isVerticalScrollBarEnabled = false
+        view.isHorizontalScrollBarEnabled = false
+        view.overScrollMode = View.OVER_SCROLL_NEVER
+        view.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            allowFileAccess = false
+            allowContentAccess = false
+            textZoom = 100
+            mediaPlaybackRequiresUserGesture = true
+            setSupportZoom(false)
+        }
+        view.addJavascriptInterface(bridge, "CleanFrameAndroid")
+        view.webViewClient = object : WebViewClient() {
+            override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
+                loader.shouldInterceptRequest(request.url)
+
+            // The launcher never navigates away from its own bundled pages.
+            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean = request.url.host != HOST
+
+            override fun onPageFinished(view: WebView, url: String) { pageReady = true }
+
+            override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
+                Log.w(AndroidCatalog.TAG, "WebView renderer gone (crash=${detail.didCrash()}); recreating")
+                (view.parent as? ViewGroup)?.removeView(view)
+                view.destroy()
+                web = null; pageReady = false
+                createWebView()
+                return true
+            }
+        }
+        view.webChromeClient = object : WebChromeClient() {
+            override fun onConsoleMessage(message: ConsoleMessage): Boolean {
+                Log.i("CleanFrameJS", "${message.message()} (${message.sourceId()}:${message.lineNumber()})")
+                return true
+            }
+        }
+        setContentView(view)
+        web = view
+        view.requestFocus()
+        view.loadUrl("https://$HOST/assets/index.html")
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        takeConfig(intent)
+        // Home pressed while already home: close panels and Photo mode.
+        if (intent.hasCategory(Intent.CATEGORY_HOME)) js("window.CleanFrameHome && window.CleanFrameHome()")
+    }
+
+    override fun onResume() {
+        super.onResume()
+        web?.onResume()
+        web?.requestFocus()
+        feed.refresh(force = false)
+    }
+
+    override fun onPause() {
+        web?.onPause()
+        super.onPause()
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        // Back (and Escape) go to the interface; the launcher itself never closes.
+        if (event.keyCode == KeyEvent.KEYCODE_BACK || event.keyCode == KeyEvent.KEYCODE_ESCAPE) {
+            if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) js("window.CleanFrameBack && window.CleanFrameBack()")
+            return true
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level >= TRIM_MEMORY_UI_HIDDEN) web?.clearCache(false)
+    }
+
+    override fun onDestroy() {
+        unregisterReceiver(packages)
+        feed.close()
+        web?.destroy()
+        super.onDestroy()
+    }
+
+    /** `adb shell am start -n <pkg>/.HomeActivity --es config '<json>'` — see README. */
+    private fun takeConfig(intent: Intent?) {
+        val json = intent?.getStringExtra("config") ?: return
+        try {
+            val (webConfig, names) = Catalog.splitConfig(json)
+            if (names.isNotEmpty()) catalog.saveInputNames(names)
+            bridge.pendingConfig = webConfig
+            Log.i(AndroidCatalog.TAG, "Configuration received (${names.size} input names)")
+            if (pageReady) web?.reload()
+        } catch (e: Exception) {
+            Log.w(AndroidCatalog.TAG, "Ignoring malformed config", e)
+        }
+    }
+
+    private fun event(name: String) = js("window.dispatchEvent(new Event('$name'))")
+
+    private fun js(code: String) {
+        runOnUiThread { if (pageReady) web?.evaluateJavascript(code, null) }
+    }
+
+    companion object {
+        const val HOST = "appassets.androidplatform.net"
     }
 }

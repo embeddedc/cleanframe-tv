@@ -1922,6 +1922,8 @@
     else render();
   });
   /* Called by the Android shell when the remote's Home button is pressed while Home is already open. */
+  /* Called by the Android shell for the remote's Back key (Android does not deliver it to the page). */
+  window.CleanFrameBack = function () { release(); press('back'); };
   window.CleanFrameHome = function () { leavePhotoMode(); if (top().id !== 'home') goScene('home'); norm(); render(); syncRotation(); };
   setLook({}, { transient: true, startup: true });
   norm(); render(); fit(); focusStage(); updateClock(); syncRotation();
