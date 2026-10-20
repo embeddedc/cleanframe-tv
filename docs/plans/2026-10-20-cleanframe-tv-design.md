@@ -25,7 +25,7 @@ It currently runs Projectivy Launcher as home.
 | Clock | Adds 24-hour format; default follows the Android system setting. |
 | Language | English UI (upstream language; better for an open-source project). |
 | Photos | Bundled 15 wallpapers (offline default) **plus Bing photo of the day** as an optional source. |
-| Bing resolution | Download **4K (UHD)** originals; render at the device's real UI resolution (1080p on the reference TV, 4K where the UI runs at 4K). |
+| Bing resolution | **1920×1080**. Android TV draws its UI at 1080p on nearly all devices (video uses a separate 4K hardware plane), so 4K photos would only cost 4× the memory and processing for an identical result. |
 | Fallback | Projectivy stays installed; "Open previous launcher" escape in Settings; ADB one-liner to restore. |
 
 ## Architecture
@@ -87,9 +87,9 @@ Nintendo Switch (HDMI 2). "PC" is HDMI 3 (All apps). Editable on the TV (1–9 a
 ## Bing photo of the day
 
 - Feed: `https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=8&mkt=<device locale>`.
-  Image: `https://www.bing.com<urlbase>_UHD.jpg` (fallback `_1920x1080.jpg`). Caption from `copyright`.
+  Image: `https://www.bing.com<urlbase>_1920x1080.jpg`. Caption from `copyright`.
 - Checked at most every 12 hours, triggered on Home resume, on a background thread. Keeps the last 8.
-- Per new photo, once: store the 4K original, a display-size copy (real UI resolution), the blurred /
+- Per new photo, once: store the 1080p image, the blurred /
   frosted / soft material variants the UI expects, and a light/dark **ink** decision computed from
   luminance under the text regions (mirrors the precomputed values of bundled wallpapers).
 - Rotation uses upstream's existing modes (fixed / each time Home opens / 5 / 15 / 60 minutes).
