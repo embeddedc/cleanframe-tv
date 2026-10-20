@@ -17,9 +17,31 @@
   var PRIMARY_APPS = window.FrameDevice && FrameDevice.primaryApps ? FrameDevice.primaryApps() : [];
   var BRAND_IDS = window.FrameDevice && FrameDevice.brandIds ? FrameDevice.brandIds() : [];
   var PRIMARY = PRIMARY_APPS.map(function (a) { return a.id; }), APPS = PRIMARY_APPS.slice(), ALPHA = [];
-  var WALLS = window.CleanFrameWallpapers || [{ id: 'misty', name: 'Misty coast', tone: 'light', ut: { tr: 'mist', br: 'mist' }, frostVeil: .20 }];
+  var BUILTIN_WALLS = window.CleanFrameWallpapers || [{ id: 'misty', name: 'Misty coast', tone: 'light', ut: { tr: 'mist', br: 'mist' }, frostVeil: .20 }];
+  /* ALL_WALLS holds every photo (built-in and Bing) for lookups; WALLS is the current source, used by the picker and rotation. */
+  var ALL_WALLS = [], WALLS = [], WALLS_SOURCE = null;
   var ADAPTIVE_INK = window.CleanFrameAdaptiveInk || {};
-  WALLS.forEach(function (w) { w.ut = w.ut || { tr: 'light', br: 'light' }; w.frostVeil = w.frostVeil || .12; });
+  function normWall(w, source) {
+    w.ut = w.ut || { tr: 'light', br: 'light' }; w.frostVeil = w.frostVeil || .12;
+    w.base = typeof w.base === 'string' && w.base ? w.base : ASSETS; w.file = typeof w.file === 'string' && w.file ? w.file : w.id; w.source = source;
+    return w;
+  }
+  function setPhotos(list) {
+    var bing = (Array.isArray(list) ? list : []).filter(function (p) { return p && typeof p.id === 'string' && /^[A-Za-z0-9][A-Za-z0-9._-]{0,80}$/.test(p.id); });
+    ALL_WALLS = BUILTIN_WALLS.map(function (w) { return normWall(w, 'builtin'); }).concat(bing.map(function (p) { return normWall(p, 'bing'); }));
+    WALLS_SOURCE = null; useSource(WALLS.length ? WALLS[0].source : 'builtin');
+  }
+  function sourceWalls(source) { return ALL_WALLS.filter(function (w) { return w.source === source; }); }
+  function useSource(source) {
+    var list = sourceWalls(source);
+    if (WALLS_SOURCE === source && WALLS.length) return;
+    WALLS = list.length ? list : sourceWalls('builtin'); WALLS_SOURCE = source;
+  }
+  /* The wall to show when switching source: keep the current one if it belongs, else the newest of that source. */
+  function wallFor(source, current) { var list = sourceWalls(source); if (!list.length) list = sourceWalls('builtin'); return list.indexOf(wall(current)) >= 0 ? current : list[0].id; }
+  function wallPath(id, suffix) { var w = wall(id) || WALLS[0]; return w.base + 'wallpapers/' + w.file + suffix; }
+  function matPath(id, suffix) { var w = wall(id) || WALLS[0]; return w.base + 'materials/' + w.file + suffix; }
+  setPhotos(window.FrameDevice && FrameDevice.photos ? FrameDevice.photos() : []);
   var MODES = [
     { id: 'fixed', name: 'Fixed', min: 0 }, { id: 'open', name: 'Each time Home opens', min: 0 },
     { id: '5', name: 'Every 5 minutes', min: 5 }, { id: '15', name: 'Every 15 minutes', min: 15 },
@@ -82,7 +104,7 @@
 
   /* ---------- Helpers ---------- */
   function app(id) { for (var i = 0; i < APPS.length; i++) if (APPS[i].id === id) return APPS[i]; return null; }
-  function wall(id) { for (var i = 0; i < WALLS.length; i++) if (WALLS[i].id === id) return WALLS[i]; return null; }
+  function wall(id) { for (var i = 0; i < ALL_WALLS.length; i++) if (ALL_WALLS[i].id === id) return ALL_WALLS[i]; return null; }
   function wallIndex(id) { for (var i = 0; i < WALLS.length; i++) if (WALLS[i].id === id) return i; return 0; }
   function frostClass(w) { var i = [.12, .20, .30, .36, .44].indexOf(w.frostVeil); return i > 0 ? ' fv-' + (i + 1) : ''; }
   function wallClasses(w) { return frostClass(w) + (w.listColumn ? ' lc-' + w.listColumn : '') + (w.dockQuiet ? ' db-quiet' : '') + (w.clockMist ? ' tl-mist' : ''); }
@@ -363,7 +385,8 @@
     return out;
   }
   function initialise() {
-    var saved = applyConfig(load(), FrameDevice.takeConfig ? FrameDevice.takeConfig() : null), initial; S.c = clean(saved); initial = next(S.c.home.slice(), S.c.recent.slice());
+    var saved = applyConfig(load(), FrameDevice.takeConfig ? FrameDevice.takeConfig() : null), initial; S.c = clean(saved);
+    useSource(S.c.source); S.c.wall = wallFor(S.c.source, S.c.wall); initial = next(S.c.home.slice(), S.c.recent.slice());
     S.stack = [{ id: 'home', f: { zone: 'apps', u: 0 } }];
     S.sel = S.c.lastApp; S.selIdx = S.c.home.indexOf(S.sel);
     if (saved && initial.mode === 'open') initial.wall = WALLS[(wallIndex(initial.wall) + 1) % WALLS.length].id;
@@ -852,7 +875,8 @@
     function options(axis, values, disabled) { return values.map(function (value) { return choice(axis, value, disabled); }); }
     if (t.group === 'background') return [
       { id: 'bg', title: 'Background type', items: options('bg', ['photo', 'light', 'dark']) },
-      { id: 'source', title: 'Photo source', horizontal: true, items: options('source', ['builtin', 'bing'], flat) },
+      { id: 'source', title: 'Photo source', horizontal: true, items: options('source', ['builtin', 'bing'], flat),
+        reason: !flat && S.c.source === 'bing' && !sourceWalls('bing').length ? 'Bing photos appear after the first download.' : '' },
       { id: 'wall', title: 'Wallpaper', items: [{ action: 'background.wallpaper', label: wall(S.c.wall).name, thumbnail: true, disabled: flat }] },
       { id: 'rotation', title: 'Rotation', items: [{ action: 'background.rotation', label: mode().name, disabled: flat }], reason: flat ? 'Choose Photo to use wallpaper and rotation.' : '' }
     ];
@@ -914,6 +938,7 @@
       if (error && error.row === 'mode') applyRotation(error.patch.mode);
       else if (error) setLook(error.patch, { row: error.row });
     } else if (item.axis === 'mode') applyRotation(item.value);
+    else if (item.axis === 'source') { if (item.value === 'bing' && FrameDevice.refreshPhotos) FrameDevice.refreshPhotos(); setLook({ source: item.value, wall: wallFor(item.value, S.c.wall) }, { row: 'source' }); }
     else if (item.axis) { patch[item.axis] = item.value; setLook(patch, { row: item.axis }); }
     else if (item.action === 'background.wallpaper') openWallpaper();
     else if (item.action === 'background.rotation') openAppearance('rotation');
@@ -1023,6 +1048,7 @@
     }).join('');
   }
   function render() {
+    useSource(S.c.source);
     var t = top(), sheet = !!V[t.id].sheet, shown = wall(S.shown ? S.shown.wall : S.c.wall), palette = ADAPTIVE_INK[shown.id];
     var adaptive = applyAdaptiveInk(palette), tr = adaptive && palette.tr ? palette.tr.pol : shown.ut.tr, br = adaptive && palette.br ? palette.br.pol : shown.ut.br;
     stage.className = 'stage bg-' + S.c.bg + ' l-' + S.c.layout + ' v-' + S.variant + ' m-' + (materialApplies() ? S.c.material : 'none') + ' f-' + S.c.focus + ' a-' + S.c.apps + ' u-' + S.c.controls + ' g-' + S.geom + ' tone-' + shown.tone + ' tr-' + tr + ' br-' + br + wallClasses(shown) + inkRungClasses(palette, adaptive) + ' at-' + t.id + ' font-' + homeFont() + (homeFont() !== 'manrope' ? ' font-custom' : '') + (S.fontSwitch ? ' is-font-switch' : '') + (adaptive ? ' has-adaptive-ink adaptive-tl-' + palette.tl.pol : '') + (!adaptive && shown.clockInk ? ' has-clock-ink' : '') + (!adaptive && shown.dockClockInk ? ' has-dock-clock-ink' : '') + (registeredMaterial(shown.id) ? ' registered-material' : '') + (sheet ? ' is-sheet' : '') + (S.reflow ? ' is-reflow' : '') + (S.photoMode ? ' is-photo-mode' : '');
@@ -1410,7 +1436,7 @@
           var swatch = item.axis === 'bg', body = '';
           if (swatch || item.thumbnail) body += item.value === 'light' || item.value === 'dark'
             ? '<span class="setting-swatch swatch-' + item.value + '" aria-hidden="true"></span>'
-            : '<img class="setting-swatch" src="' + WP + S.c.wall + '-thumb.jpg" alt="">';
+            : '<img class="setting-swatch" src="' + wallPath(S.c.wall, '-thumb.jpg') + '" alt="">';
           body += '<span class="setting-copy"><span class="setting-name">' + esc(item.label) + '</span>'
             + (item.description ? '<span class="setting-description">' + esc(item.description) + '</span>' : '') + '</span>';
           if (!item.axis) body += icon('right', 'setting-forward');
@@ -1437,7 +1463,7 @@
     var rows = appearanceRows.querySelector('.wallpaper-rows'), shown = wall(S.wallShown) || wall(S.c.wall), candidate = WALLS[t.i], status, note, hint;
     keyed(rows, WALLS.map(function (w) { return { key: w.id, wall: w }; }), function (row, item, i) {
       var visible = i >= t.top && i < t.top + WALL_VISIBLE, w = item.wall, image;
-      setContent(row, w.id + '|' + visible, '<span class="wallpaper-thumb">' + (visible ? '<img src="' + WP + w.id + '-thumb.jpg" alt="">' : '') + '</span><span class="setting-copy"><span class="setting-name">' + esc(w.name) + '</span></span><span class="setting-tick" aria-hidden="true"></span>');
+      setContent(row, w.id + '|' + visible, '<span class="wallpaper-thumb">' + (visible ? '<img src="' + wallPath(w.id, '-thumb.jpg') + '" alt="">' : '') + '</span><span class="setting-copy"><span class="setting-name">' + esc(w.name) + '</span></span><span class="setting-tick" aria-hidden="true"></span>');
       row.className = 'setting-choice wallpaper-choice' + (t.f.zone === 'photo' && t.i === i ? ' is-focus' : '') + (w.id === S.c.wall ? ' is-applied' : '');
       row.style.transform = 'translate3d(0,' + (i * WALL_ROW) + 'px,0)'; row.style.visibility = visible ? 'visible' : 'hidden';
       row.setAttribute('role', 'radio'); row.setAttribute('tabindex', '-1'); row.setAttribute('aria-label', w.name);
@@ -1626,8 +1652,8 @@
   /* ---------- Atomic appearance bundles ---------- */
   var wallToken = 0, committedBundle = null, reflowToken = 0, fontSwitchToken = 0;
   function registeredMaterial(id) { return S.c.bg === 'photo' && S.c.material === 'soft' && !!wall(id); }
-  function matSrc(id, material) { return 'assets/materials/' + id + (material === 'soft' ? '-study-soft.jpg' : material === 'tint' ? '-field-clear.jpg' : '-field-frost.jpg'); }
-  function fieldSrc(id, material) { return 'assets/materials/' + id + (material === 'soft' ? '-field-blur.jpg' : material === 'tint' ? '-field-clear.jpg' : '-field-frost.jpg'); }
+  function matSrc(id, material) { return matPath(id, material === 'soft' ? '-study-soft.jpg' : material === 'tint' ? '-field-clear.jpg' : '-field-frost.jpg'); }
+  function fieldSrc(id, material) { return matPath(id, material === 'soft' ? '-field-blur.jpg' : material === 'tint' ? '-field-clear.jpg' : '-field-frost.jpg'); }
   function makeImg(cls, src) { var im = document.createElement('img'); im.className = cls; im.alt = ''; im._src = src; im.src = src; return im; }
   function whenReady(im, done) {
     var fin = false, timer = setTimeout(function () { finish(false); }, 8000);
@@ -1639,7 +1665,7 @@
   function swapImg(k, im) { var old = IMG[k]; if (old === im) return; im.style.cssText = old.style.cssText; if (old.id) im.id = old.id; old.parentNode.replaceChild(im, old); IMG[k] = im; }
   function bundleKey(look) { return look.wall + '|' + look.material; }
   function loadBundle(look, token, done) {
-    var imgs = { photo: makeImg('photo', WP + look.wall + '.jpg'), bg: makeImg('sheet-bg', WP + look.wall + '-panel.jpg') }, keys, left, allOk = true;
+    var imgs = { photo: makeImg('photo', wallPath(look.wall, '.jpg')), bg: makeImg('sheet-bg', wallPath(look.wall, '-panel.jpg')) }, keys, left, allOk = true;
     imgs.mat = makeImg('mat-img', matSrc(look.wall, look.material));
     imgs.field = makeImg('ph-field-img', fieldSrc(look.wall, look.material));
     imgs.fieldAlt = makeImg('ph-field-img', fieldSrc(look.wall, look.material));
@@ -1887,6 +1913,14 @@
   initialise();
   refreshCatalog();
   window.addEventListener('cleanframe:apps-changed', function () { refreshCatalog(); });
+  /* New Bing photos: rebuild the lists; move off a photo that left the cache or a built-in fallback. */
+  window.addEventListener('cleanframe:photos-updated', function () {
+    var current = wall(S.c.wall), target;
+    setPhotos(FrameDevice.photos ? FrameDevice.photos() : []); useSource(S.c.source);
+    target = wallFor(S.c.source, current && wall(current.id) ? current.id : '');
+    if (!current || !wall(current.id) || (S.c.source === 'bing' && current.source !== 'bing')) setLook({ wall: target }, { row: 'bg' });
+    else render();
+  });
   /* Called by the Android shell when the remote's Home button is pressed while Home is already open. */
   window.CleanFrameHome = function () { leavePhotoMode(); if (top().id !== 'home') goScene('home'); norm(); render(); syncRotation(); };
   setLook({}, { transient: true, startup: true });
