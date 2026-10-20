@@ -1835,6 +1835,8 @@
   }
   function fit() {
     var scale = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+    // A launcher can load behind the screensaver with a 0 x 0 window; keep the last fit until it has a size.
+    if (!(scale > 0)) return;
     stage.style.transform = 'scale(' + scale + ')';
     stage.style.left = ((window.innerWidth - 1920 * scale) / 2) + 'px';
     stage.style.top = ((window.innerHeight - 1080 * scale) / 2) + 'px';
@@ -1895,11 +1897,11 @@
   });
   document.addEventListener('keyup', function (ev) { delete heldKeys[ev.keyCode]; endHold(ev.keyCode); });
   window.addEventListener('blur', function () { heldKeys = {}; cancelHold(); });
-  window.addEventListener('focus', function () { release(); focusStage(); after(); updateClock(); });
+  window.addEventListener('focus', function () { fit(); release(); focusStage(); after(); updateClock(); });
   document.addEventListener('visibilitychange', function () {
     heldKeys = {};
     if (document.hidden) { pauseRotation(); clearTimeout(clockTimer); }
-    else { release(); after(); updateClock(); focusStage(); }
+    else { fit(); release(); after(); updateClock(); focusStage(); }
   });
   window.addEventListener('resize', fit);
 

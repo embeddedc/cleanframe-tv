@@ -451,6 +451,18 @@ try {
       check(layout + ' fits ' + width + ' with one focus', Math.abs(g.x) < 1 && Math.abs(g.y) < 1 && Math.abs(g.width - width) < 1 && Math.abs(g.height - width * 9 / 16) < 1 && g.focus === 1, g);
       await current.screenshot({ path: out + 'production-' + layout + '-' + width + '.jpg', quality: 90 });
     }
+    // Behind the TV's screensaver the launcher can load with a 0 x 0 window; the last fit stays until it has a size.
+    const scaled = await current.evaluate(() => {
+      const stage = document.getElementById('stage'), before = stage.style.transform, real = Object.getOwnPropertyDescriptor(window, 'innerWidth');
+      Object.defineProperty(window, 'innerWidth', { configurable: true, get: () => 0 });
+      window.dispatchEvent(new Event('resize'));
+      const hidden = stage.style.transform;
+      if (real) Object.defineProperty(window, 'innerWidth', real); else delete window.innerWidth;
+      stage.style.transform = 'scale(0)';
+      window.dispatchEvent(new Event('focus'));
+      return { before, hidden, refit: stage.style.transform };
+    });
+    check('A 0 x 0 window keeps the last fit and focus refits', scaled.hidden === scaled.before && scaled.refit === scaled.before && scaled.before !== 'scale(0)', scaled);
     check('No live blur/backdrop filters', (await noLiveFilters()).length === 0, await noLiveFilters());
     check('No prototype lab controls in production', await current.evaluate(() => !document.querySelector('[data-lab], #lab, #side') && !document.querySelector('script[src*="prototype"]')));
     const before = (await state()).look; await current.reload(); await ready(); check('Appearance survives reload', same((await state()).look, before));
