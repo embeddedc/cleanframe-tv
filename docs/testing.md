@@ -18,6 +18,8 @@ PLAYWRIGHT_BROWSERS_PATH="$PWD/.local/playwright" npx playwright install chromiu
 PLAYWRIGHT_BROWSERS_PATH="$PWD/.local/playwright" npm run check:browser
 ```
 
+`node scripts/check-performance.mjs` replays navigation in every view with Chromium slowed down 4× and reports key-handling and frame times, layer counts and photo load times (`.local/qa/performance/`). It is a regression screen for changes to rendering, not a TV benchmark.
+
 For manual review, use `npm run dev` and open `/home/` with the arrow keys, Enter and Escape. Check a changed flow in List and Dock, on Photo, Light and Dark backgrounds, with one app and with nine. In Settings, browse without applying, apply with OK, return with Back, and cancel a pending load. Browser preferences are separate from the TV's.
 
 ## Android checks
