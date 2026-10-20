@@ -468,6 +468,26 @@
 
   var busy = false, busyTimer = 0;
   function release() { busy = false; clearTimeout(busyTimer); S.press = null; }
+  /* Holding OK on an app closes it; a short press still opens it. Other controls keep OK on key down. */
+  var HOLD_MS = 650, hold = null, flashTimer = 0;
+  function holdable(action) { return !!action && !!FrameDevice.closeApp && (action.indexOf('home.app.') === 0 || action.indexOf('apps.open.') === 0); }
+  function startHold(code, action) {
+    hold = { code: code, timer: setTimeout(function () { hold = null; closeApp(action); }, HOLD_MS) };
+  }
+  function cancelHold() { if (hold) { clearTimeout(hold.timer); hold = null; } }
+  function endHold(code) { if (!hold || hold.code !== code) return; cancelHold(); press('ok'); }
+  function closeApp(action) {
+    var a = app(action.replace(/^(home\.app\.|apps\.open\.)/, ''));
+    if (!a || !a.appId) return;
+    FrameDevice.closeApp(a.appId, function (err) { flash(action, err ? err.message : 'Closed ' + a.name + '.'); });
+  }
+  /* A short note under the focused control, gone after a moment or when focus moves. */
+  function flash(action, text) {
+    clearTimeout(flashTimer);
+    S.flash = { action: action, text: text };
+    flashTimer = setTimeout(function () { S.flash = null; render(); }, 2600);
+    render();
+  }
   function message(title, line, note) {
     push({ id: 'message', msg: 'error', content: { title: title, line: line, note: note || '', actions: [['back', 'Back']] }, f: { b: 0 } });
   }
@@ -1497,6 +1517,7 @@
     var root = isSettingsDetail(top()) ? appearanceEl : sheetEl.hidden ? homeEl : sheetEl, active = root.querySelectorAll('.is-focus[data-action]'), target = null, text = S.err ? 'Not saved. OK tries again.' : '', i, r, sr, scale, x, y, w, action, solid, photoRow = false, photoFree = false;
     Array.prototype.forEach.call(stage.querySelectorAll('.has-local-status'), function (el) { el.className = el.className.replace(/\s+has-local-status/g, ''); });
     for (i = 0; i < active.length; i++) if (renderedAction(active[i])) { target = active[i]; break; }
+    if (!text && S.flash && target && target.getAttribute('data-action') === S.flash.action) text = S.flash.text;
     if (!text && t.id === 'arrange' && (t.f.zone === 'act' || t.f.zone === 'tiles')) {
       var slot = t.slots[t.f.i];
       if (slot && !slot.removed && t.f.zone === 'act' && S.c.home.length === 1) text = LAST;
@@ -1866,10 +1887,12 @@
     if (!k || ev.metaKey || ev.ctrlKey || ev.altKey) return;
     ev.preventDefault();
     if (k === 'ok' || k === 'back') { if (ev.repeat || heldKeys[code]) return; heldKeys[code] = true; }
+    if (hold) cancelHold();
+    if (k === 'ok' && !S.photoMode && holdable(focusedAction())) { startHold(code, focusedAction()); return; }
     press(k);
   });
-  document.addEventListener('keyup', function (ev) { delete heldKeys[ev.keyCode]; });
-  window.addEventListener('blur', function () { heldKeys = {}; });
+  document.addEventListener('keyup', function (ev) { delete heldKeys[ev.keyCode]; endHold(ev.keyCode); });
+  window.addEventListener('blur', function () { heldKeys = {}; cancelHold(); });
   window.addEventListener('focus', function () { release(); focusStage(); after(); updateClock(); });
   document.addEventListener('visibilitychange', function () {
     heldKeys = {};

@@ -20,6 +20,7 @@ function fakeBridge(apps, extra = {}) {
     calls,
     appsJson: () => JSON.stringify(apps),
     launch: (id) => { calls.push(['launch', id]); return id === 'broken.app' ? 'Not installed' : ''; },
+    closeApp: (id) => { calls.push(['close', id]); return id.indexOf('input.') === 0 ? 'Inputs can’t be closed.' : ''; },
     openSettings: () => { calls.push(['settings']); return ''; },
     openPreviousLauncher: () => { calls.push(['previous']); return ''; },
     is24Hour: () => true,
@@ -66,7 +67,11 @@ dev.launchApp('broken.app', (err) => { result = err; });
 assert.equal(result.message, 'Not installed');
 dev.settings((err) => { result = err; });
 assert.equal(result, null);
-assert.deepEqual(bridge.calls.map((c) => c[0]), ['launch', 'launch', 'settings']);
+dev.closeApp('com.amazon.amazonvideo.livingroom', (err) => { result = err; });
+assert.equal(result, null);
+dev.closeApp('input.hw5', (err) => { result = err; });
+assert.match(result.message, /Inputs/);
+assert.deepEqual(plain(bridge.calls), [['launch', 'org.smarttube.stable'], ['launch', 'broken.app'], ['settings'], ['close', 'com.amazon.amazonvideo.livingroom'], ['close', 'input.hw5']]);
 assert.equal(dev.is24Hour(), true);
 
 // Config is handed over once as an object; malformed config is ignored.
@@ -83,6 +88,8 @@ assert.ok(listed.some((a) => a.appId.indexOf('input.') === 0));
 assert.equal(dev.photos().length, 2);
 dev.launchApp('org.smarttube.stable', (err) => { result = err; });
 assert.match(result.message, /TV/);
+dev.closeApp('org.smarttube.stable', (err) => { result = err; });
+assert.match(result.message, /Preview/);
 
 console.log('device.js adapter checks passed.');
 

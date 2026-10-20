@@ -3,6 +3,8 @@
 
     <!-- Only used to download the Bing photo of the day. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Holding OK on an app closes it (ends its background processes). -->
+    <uses-permission android:name="android.permission.KILL_BACKGROUND_PROCESSES" />
 
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />

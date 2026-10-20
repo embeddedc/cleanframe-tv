@@ -12,6 +12,7 @@ class Bridge(private val activity: HomeActivity, private val catalog: AndroidCat
 
     @JavascriptInterface fun appsJson(): String = Catalog.toJson(catalog.entries())
     @JavascriptInterface fun launch(appId: String): String = catalog.launch(appId)
+    @JavascriptInterface fun closeApp(appId: String): String = catalog.close(appId)
     @JavascriptInterface fun openSettings(): String = catalog.openSettings()
     @JavascriptInterface fun openPreviousLauncher(): String = catalog.openPreviousLauncher()
     @JavascriptInterface fun is24Hour(): Boolean = DateFormat.is24HourFormat(activity)

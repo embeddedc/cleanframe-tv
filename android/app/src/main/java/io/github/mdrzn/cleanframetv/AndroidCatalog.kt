@@ -1,5 +1,6 @@
 package io.github.mdrzn.cleanframetv
 
+import android.app.ActivityManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
@@ -80,6 +81,25 @@ class AndroidCatalog(private val context: Context) {
             ""
         } catch (e: Exception) {
             Log.w(TAG, "Launch failed: $appId", e); "The TV could not open this app."
+        }
+    }
+
+    /**
+     * Ends an app's background processes, freeing its memory. Settings' "Force stop" is reserved for
+     * system apps; this is the strongest close a launcher may do, and the app is backgrounded by then.
+     */
+    fun close(appId: String): String {
+        if (appId.startsWith("input.")) return "Inputs can’t be closed."
+        if (appId == context.packageName) return ""
+        return try {
+            pm.getPackageInfo(appId, 0)
+            (context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager).killBackgroundProcesses(appId)
+            Log.i(TAG, "Closed $appId")
+            ""
+        } catch (e: PackageManager.NameNotFoundException) {
+            "This app is not installed."
+        } catch (e: Exception) {
+            Log.w(TAG, "Close failed: $appId", e); "The TV could not close this app."
         }
     }
 

@@ -88,6 +88,12 @@
     if (!b) { result(PREVIEW, done); return; }
     try { result(b.launch(String(id)), done); } catch (e) { result('The TV did not respond. Please try again.', done); }
   }
+  /* Ends a backgrounded app's processes; the TV keeps HDMI inputs as they are. */
+  function closeApp(id, done) {
+    var b = bridge();
+    if (!b || !b.closeApp) { result('Preview: closing apps needs the TV.', done); return; }
+    try { result(b.closeApp(String(id)), done); } catch (e) { result('The TV did not respond. Please try again.', done); }
+  }
   function launch(brand, done) {
     var chosen = brandChoices(installed());
     if (!chosen[brand]) { result('This app is not installed.', done); return; }
@@ -109,7 +115,7 @@
   }
 
   window.FrameDevice = {
-    primaryApps: primaryApps, brandIds: brandIds, apps: apps, launch: launch, launchApp: launchApp, settings: settings,
+    primaryApps: primaryApps, brandIds: brandIds, apps: apps, launch: launch, launchApp: launchApp, closeApp: closeApp, settings: settings,
     previousLauncher: previousLauncher, is24Hour: is24Hour, photos: photos, refreshPhotos: refreshPhotos,
     takeConfig: takeConfig, android: !!bridge()
   };
