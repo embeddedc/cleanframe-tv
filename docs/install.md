@@ -22,12 +22,12 @@ This guide installs CleanFrame TV from a computer with [ADB](https://developer.a
 
 ## Get the APK
 
-Download `CleanFrameTV.apk` from the releases page, or build it yourself (see the README): `npm run android:build` writes `android/app/build/outputs/apk/release/app-release.apk`. An update must be signed with the same key as the installed copy.
+Download `CleanFrameTV-<version>.apk` from [Releases](https://github.com/mdrzn/cleanframe-tv/releases/latest) and compare its SHA-256 with the one in the release notes (`sha256sum`, or `Get-FileHash` on Windows). Or build it yourself (see the README): `npm run android:build` writes `android/app/build/outputs/apk/release/app-release.apk`, signed with your own key or the debug key. An update must be signed with the same key as the installed copy, so switching between release downloads and your own builds needs an uninstall first.
 
 ## Install and make it Home
 
 ```sh
-adb install CleanFrameTV.apk
+adb install CleanFrameTV-0.1.0.apk
 adb shell cmd package set-home-activity io.github.mdrzn.cleanframetv/.HomeActivity
 adb shell input keyevent KEYCODE_HOME
 ```
@@ -128,6 +128,7 @@ At start the launcher logs its viewport, which should read `Viewport "1920x1080 
 | --- | --- |
 | After closing an app, the old launcher appears | Android keeps the previous launcher's screen until it is stopped: `adb shell am force-stop <old launcher package>` once, or restart the TV. |
 | The interface is too large or cut off | Check the viewport line in the log (above) and report it with your TV model. |
+| After a restart the TV shows an HDMI input instead of CleanFrame TV | Some TVs (Xiaomi, for example) reopen the last HDMI input over the home screen at power-on if it was still active when the TV went off. This happens with any launcher; press Home. |
 | An app shows "Closed" but keeps running | Apps with a foreground service (for example SmartTube's phone-remote link) cannot be closed by a launcher; use Settings → Apps → Force stop. |
 | A remote button still opens the TV's own screen | The service is not enabled, the keycode is wrong, or you tested with `adb shell input keyevent`. |
 | Bing photos don't appear | Check that Photo source is Bing and the TV is online; the log shows "Bing photo ready" or the error. Built-in wallpapers are used until photos arrive. |

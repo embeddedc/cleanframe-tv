@@ -35,11 +35,11 @@ Reports from other devices are welcome; see [Contribute](#contribute).
 
 ## Install
 
-You need a computer with [ADB](https://developer.android.com/tools/adb) and debugging enabled on the TV: Settings → Device Preferences → About, select Build seven times, then turn on Developer options → USB debugging (on many TVs this also enables network ADB on port 5555).
+Download the APK from [Releases](https://github.com/mdrzn/cleanframe-tv/releases/latest) (or [build it](#build-from-source)). You need a computer with [ADB](https://developer.android.com/tools/adb) and debugging enabled on the TV: Settings → Device Preferences → About, select Build seven times, then turn on Developer options → USB debugging (on many TVs this also enables network ADB on port 5555).
 
 ```sh
 adb connect <tv-address>:5555
-adb install CleanFrameTV.apk
+adb install CleanFrameTV-0.1.0.apk
 adb shell cmd package set-home-activity io.github.mdrzn.cleanframetv/.HomeActivity
 adb shell input keyevent KEYCODE_HOME
 ```
