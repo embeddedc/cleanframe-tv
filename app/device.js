@@ -65,11 +65,17 @@
   }
 
   function primaryApps() {
-    var list = installed(), chosen = brandChoices(list);
-    return BRANDS.filter(function (brand) { return chosen[brand.id]; }).map(function (brand) {
+    var list = installed(), chosen = brandChoices(list), out;
+    out = BRANDS.filter(function (brand) { return chosen[brand.id]; }).map(function (brand) {
       return { id: brand.id, name: brand.name, mark: true, appId: chosen[brand.id] };
     });
+    /* No known brand installed: start Home with the first few installed apps instead of an empty list. */
+    if (!out.length) out = list.filter(function (a) { return a.kind !== 'input'; }).slice(0, 5).map(function (a) {
+      return { id: a.appId, name: a.name, mark: false, appId: a.appId, icon: typeof a.icon === 'string' ? a.icon : '' };
+    });
+    return out;
   }
+  function brandIds() { return BRANDS.map(function (brand) { return brand.id; }); }
   function apps(done) {
     var list = installed(), chosen = brandChoices(list), brandOf = {};
     Object.keys(chosen).forEach(function (id) { brandOf[chosen[id]] = id; });
@@ -103,7 +109,7 @@
   }
 
   window.FrameDevice = {
-    primaryApps: primaryApps, apps: apps, launch: launch, launchApp: launchApp, settings: settings,
+    primaryApps: primaryApps, brandIds: brandIds, apps: apps, launch: launch, launchApp: launchApp, settings: settings,
     previousLauncher: previousLauncher, is24Hour: is24Hour, photos: photos, refreshPhotos: refreshPhotos,
     takeConfig: takeConfig, android: !!bridge()
   };

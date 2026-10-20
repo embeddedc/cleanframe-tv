@@ -85,3 +85,12 @@ dev.launchApp('org.smarttube.stable', (err) => { result = err; });
 assert.match(result.message, /TV/);
 
 console.log('device.js adapter checks passed.');
+
+// No known brand installed: Home starts with the first installed apps (not inputs), unmarked.
+dev = load(fakeBridge([
+  { appId: 'it.rainet.androidtv', name: 'RaiPlay', kind: 'app', icon: '/icons/r.png' },
+  { appId: 'input.hw4', name: 'HDMI 1', kind: 'input' }
+]));
+assert.deepEqual(plain(dev.primaryApps()), [{ id: 'it.rainet.androidtv', name: 'RaiPlay', mark: false, appId: 'it.rainet.androidtv', icon: '/icons/r.png' }]);
+assert.ok(plain(dev.brandIds()).indexOf('jellyfin') >= 0);
+console.log('device.js fallback checks passed.');
