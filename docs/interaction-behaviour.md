@@ -38,7 +38,7 @@ Settings opens a grouped overview: Background, Layout, Typography, Focus, Apps o
 
 | Group | Choices |
 | --- | --- |
-| Background | Photo, Light, Dark; Photo source (Built-in or Bing photo of the day), Wallpaper and Rotation when Photo is active |
+| Background | Photo, Light, Dark; Photo source (Built-in or Bing), Wallpaper and Rotation when Photo is active |
 | Layout | List or Dock; Text, Icons or Both for apps and for Home controls; Clock 24-hour or 12-hour |
 | Typography | Manrope and the other bundled typefaces |
 | Focus | Type or Glass; Soft, Frost or Clear tint material |
@@ -55,7 +55,7 @@ The selected font applies to Home app names, the clock and Home controls. Settin
 
 ## All apps
 
-All apps lists the installed apps that have a launcher entry, one per app (the TV activity is preferred), sorted by name, followed by the HDMI inputs. System apps that only have a phone-style entry (vendor services, the desk clock) are hidden, and CleanFrame TV does not list itself. HDMI inputs show the TV's label or the name given to them. Tuners, composite/AV inputs and devices behind an HDMI port are not listed. The list refreshes when apps are installed, removed or updated.
+All apps lists the installed apps that have a launcher entry, one per app (the TV activity is preferred), and the HDMI inputs, all sorted by name. System apps that only have a phone-style entry (vendor services, the desk clock) are hidden, and CleanFrame TV does not list itself. HDMI inputs show the TV's label or the name given to them. Tuners, composite/AV inputs and devices behind an HDMI port are not listed. The list refreshes when apps are installed, removed or updated.
 
 The five-column grid scrolls with remote focus. OK launches an app; its On Home badge shows membership. Holding OK closes it. Up from the first row reaches Apps on Home, which opens the editor. A catalogue failure shows a retry and keeps saved Home choices. The browser preview uses a fixed mock catalogue.
 

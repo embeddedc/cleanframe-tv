@@ -30,7 +30,7 @@ Keep runtime JavaScript ES5-compatible: Android TV devices ship old WebViews. Th
 | File | Role |
 | --- | --- |
 | `HomeActivity.kt` | The launcher (`singleTask`, HOME + LEANBACK_LAUNCHER). One full-screen WebView, kept alive while apps run. Back/Escape go to the interface (`CleanFrameBack`); Home while already home closes panels and Photo mode (`CleanFrameHome`). A launch that isn't a HOME intent while CleanFrame TV is the default home is forwarded to the home instance, so there is never a second WebView. Recreates the WebView if its renderer dies. Takes `--es config` and `--ez debug`. |
-| `Bridge.kt` | `window.CleanFrameAndroid`: `appsJson`, `launch`, `closeApp`, `openSettings`, `openPreviousLauncher`, `is24Hour`, `photosJson`, `refreshPhotos`, `takeConfig`. All synchronous; actions return `""` or a short message for the interface. |
+| `Bridge.kt` | `window.CleanFrameAndroid`: `appsJson`, `launch`, `closeApp`, `openSettings`, `openPreviousLauncher`, `is24Hour`, `photosJson`, `refreshPhotos`, `setPhotoSource`, `takeConfig`. All synchronous; actions return `""` or a short message for the interface. |
 | `Catalog.kt` | Pure rules, unit tested: one entry per package (TV activity preferred), system apps without a TV entry hidden, HDMI inputs only (no tuners, composite, CEC children), input ids `input.<hwN>`, JSON, config splitting, button maps. |
 | `AndroidCatalog.kt` | PackageManager and TvInputManager access, icon export (128 px PNG in `filesDir/icons`), launching (leanback intent, or the passthrough channel URI for inputs), closing (`killBackgroundProcesses`), input names and button targets in SharedPreferences. |
 | `BingFeed.kt`, `PhotoMaker.kt`, `PhotoMeta.kt`, `Photos.kt` | Bing photo of the day: feed parsing, downloads, the material images the interface expects and the light/dark ink decisions, stored in `filesDir/photos` with a `photos.json` index. |
@@ -42,7 +42,7 @@ Permissions: `INTERNET` (Bing photos only), `KILL_BACKGROUND_PROCESSES` (hold-to
 
 ### Bing photos
 
-The feed is `https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=8&mkt=<language-COUNTRY>` and each image `https://www.bing.com<urlbase>_1920x1080.jpg`. Android TV draws its interface at 1080p on nearly all devices (video uses a separate plane), so larger images would only cost memory. Each new photo is processed once on a background thread: cover crop, background, thumbnail, field blur, frost, soft study and clear materials, the small panel image, and tone/ink values computed from luminance under the text areas. Photos are refreshed at most every 12 hours and the newest eight are kept. Failures keep the previous photos; with none, the built-in wallpapers are used.
+The feed is `https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=8&mkt=<language-COUNTRY>` and each image `https://www.bing.com<urlbase>_1920x1080.jpg`. Android TV draws its interface at 1080p on nearly all devices (video uses a separate plane), so larger images would only cost memory. Each new photo is processed once on a background thread: cover crop, background, thumbnail, field blur, frost, soft study and clear materials, the small panel image, and tone/ink values computed from luminance under the text areas. The interface reports its photo source with `setPhotoSource`; only while it is `bing` does the launcher check for new photos (on Home, at most every 12 hours), and choosing Bing in Settings fetches immediately. The newest eight are kept. Failures keep the previous photos; with none, the built-in wallpapers are used.
 
 ## Build
 

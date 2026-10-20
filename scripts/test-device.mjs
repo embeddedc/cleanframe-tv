@@ -20,6 +20,7 @@ function fakeBridge(apps, extra = {}) {
     calls,
     appsJson: () => JSON.stringify(apps),
     launch: (id) => { calls.push(['launch', id]); return id === 'broken.app' ? 'Not installed' : ''; },
+    setPhotoSource: (source) => { calls.push(['source', source]); },
     closeApp: (id) => { calls.push(['close', id]); return id.indexOf('input.') === 0 ? 'Inputs can’t be closed.' : ''; },
     openSettings: () => { calls.push(['settings']); return ''; },
     openPreviousLauncher: () => { calls.push(['previous']); return ''; },
@@ -74,6 +75,12 @@ assert.match(result.message, /Inputs/);
 assert.deepEqual(plain(bridge.calls), [['launch', 'org.smarttube.stable'], ['launch', 'broken.app'], ['settings'], ['close', 'com.amazon.amazonvideo.livingroom'], ['close', 'input.hw5']]);
 assert.equal(dev.is24Hour(), true);
 
+// A bridge exception while reading the catalogue is reported, not thrown, so All apps can retry.
+dev = load(fakeBridge(installed, { appsJson: () => { throw new Error('Java exception was raised during method invocation'); } }));
+result = 'unset';
+dev.apps((err, list) => { result = err; listed = list; });
+assert.match(result.message, /installed apps/);
+
 // Config is handed over once as an object; malformed config is ignored.
 dev = load(fakeBridge(installed, { takeConfig: () => '{"home":["primevideo"],"clock":"24"}' }));
 assert.deepEqual(plain(dev.takeConfig()), { home: ['primevideo'], clock: '24' });
@@ -90,6 +97,14 @@ dev.launchApp('org.smarttube.stable', (err) => { result = err; });
 assert.match(result.message, /TV/);
 dev.closeApp('org.smarttube.stable', (err) => { result = err; });
 assert.match(result.message, /Preview/);
+
+// The photo source reaches Android only when it changes (the TV contacts Bing only for 'bing').
+const sourceBridge = fakeBridge(installed);
+dev = load(sourceBridge);
+['builtin', 'builtin', 'bing', 'bing', 'builtin'].forEach((s) => dev.photoSource(s));
+assert.deepEqual(plain(sourceBridge.calls), [['source', 'builtin'], ['source', 'bing'], ['source', 'builtin']]);
+dev = load(fakeBridge(installed, { setPhotoSource: undefined }));
+dev.photoSource('bing');
 
 console.log('device.js adapter checks passed.');
 

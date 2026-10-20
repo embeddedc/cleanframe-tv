@@ -77,7 +77,10 @@
   }
   function brandIds() { return BRANDS.map(function (brand) { return brand.id; }); }
   function apps(done) {
-    var list = installed(), chosen = brandChoices(list), brandOf = {};
+    var list, chosen, brandOf = {};
+    /* A Java exception in the bridge arrives as a thrown Error; report it so All apps offers a retry. */
+    try { list = installed(); } catch (e) { done({ message: 'Could not read installed apps.' }); return; }
+    chosen = brandChoices(list);
     Object.keys(chosen).forEach(function (id) { brandOf[chosen[id]] = id; });
     done(null, list.map(function (a) {
       return { appId: a.appId, name: a.name, brand: brandOf[a.appId] || '', icon: typeof a.icon === 'string' ? a.icon : '', kind: a.kind === 'input' ? 'input' : 'app' };
@@ -106,6 +109,13 @@
     var b = bridge(), list = b ? parse(b.photosJson(), []) : MOCK_PHOTOS;
     return Array.isArray(list) ? list.filter(function (p) { return p && typeof p.id === 'string' && typeof p.base === 'string'; }) : [];
   }
+  /* Tells Android which photo source is in use (only changes are sent); it contacts Bing only for 'bing'. */
+  var sentSource = null;
+  function photoSource(source) {
+    var b = bridge();
+    if (!b || !b.setPhotoSource || source === sentSource) return;
+    try { b.setPhotoSource(String(source)); sentSource = source; } catch (e) {}
+  }
   function refreshPhotos() { var b = bridge(); if (b) try { b.refreshPhotos(); } catch (e) {} }
   function takeConfig() {
     var b = bridge(), value;
@@ -116,7 +126,7 @@
 
   window.FrameDevice = {
     primaryApps: primaryApps, brandIds: brandIds, apps: apps, launch: launch, launchApp: launchApp, closeApp: closeApp, settings: settings,
-    previousLauncher: previousLauncher, is24Hour: is24Hour, photos: photos, refreshPhotos: refreshPhotos,
+    previousLauncher: previousLauncher, is24Hour: is24Hour, photos: photos, refreshPhotos: refreshPhotos, photoSource: photoSource,
     takeConfig: takeConfig, android: !!bridge()
   };
 })();

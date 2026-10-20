@@ -508,9 +508,14 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000}
 .is-horizontal .setting-tick .ico{width:26px;height:26px}
 .section-material .setting-choice:last-child{flex:1.4}
 .detail-background .section-rotation .setting-choice{padding-left:128px}
-.detail-layout .setting-section+.setting-section,.detail-focus .setting-section+.setting-section{margin-top:64px}
+.detail-focus .setting-section+.setting-section{margin-top:64px}
+/* Background (with Photo source) and Layout (with Clock) hold four sections: keep them clear of the OK hint at 968px. */
+.detail-background .setting-section+.setting-section{margin-top:20px}
+.detail-background .setting-label{margin-bottom:8px}
+.detail-background .setting-choice{min-height:74px}
+.detail-background .is-horizontal .setting-choice{min-height:80px}
 .detail-typography .setting-choice,.detail-rotation .setting-choice{min-height:88px}
-.detail-typography .appearance-rows,.detail-rotation .appearance-rows,.detail-samsung .appearance-rows{top:260px}
+.detail-typography .appearance-rows,.detail-rotation .appearance-rows,.detail-android .appearance-rows{top:260px}
 .setting-choice.has-description{min-height:120px}
 .setting-description{font-size:26px;line-height:36px;font-weight:400;letter-spacing:0;color:var(--mute);white-space:normal}
 .setting-choice.is-focus .setting-description{color:var(--solid-mute)}

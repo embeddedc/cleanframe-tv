@@ -18,5 +18,6 @@ class Bridge(private val activity: HomeActivity, private val catalog: AndroidCat
     @JavascriptInterface fun is24Hour(): Boolean = DateFormat.is24HourFormat(activity)
     @JavascriptInterface fun photosJson(): String = photos.json()
     @JavascriptInterface fun refreshPhotos() { feed.refresh(force = true) }
+    @JavascriptInterface fun setPhotoSource(source: String) = feed.setSource(source)
     @JavascriptInterface fun takeConfig(): String { val value = pendingConfig ?: ""; pendingConfig = null; return value }
 }

@@ -19,8 +19,15 @@ class BingFeed(private val context: Context, private val photos: Photos, private
     private val running = AtomicBoolean(false)
     private val prefs = context.getSharedPreferences("cleanframe", Context.MODE_PRIVATE)
 
+    /** The interface's photo source. Bing is only contacted while it is "bing" (or on an explicit refresh). */
+    fun setSource(source: String) {
+        prefs.edit().putString(SOURCE, source).apply()
+        if (source == BING) refresh(force = false)
+    }
+
     fun refresh(force: Boolean) {
         val now = System.currentTimeMillis()
+        if (!force && prefs.getString(SOURCE, null) != BING) return
         if (!force && now - prefs.getLong(CHECKED, 0L) < INTERVAL_MS) return
         if (!running.compareAndSet(false, true)) return
         executor.execute {
@@ -94,6 +101,8 @@ class BingFeed(private val context: Context, private val photos: Photos, private
         const val KEEP = 8
         private const val INTERVAL_MS = 12L * 60 * 60 * 1000
         private const val CHECKED = "bingChecked"
+        private const val SOURCE = "photoSource"
+        private const val BING = "bing"
 
         fun feedUrl(language: String, country: String): String {
             val market = if (language.isNotBlank() && country.isNotBlank()) "$language-$country" else "en-US"

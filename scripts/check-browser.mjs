@@ -1,30 +1,46 @@
-// Production UI checks. Mock only the public Tizen boundary; never contact a TV.
+// Production UI checks. Fake only the window.CleanFrameAndroid bridge; never contact a TV.
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { openPreview, root } from './browser.mjs';
 
 const KEY = 'cleanframe.home.v1';
-const PRIMARY = ['stremio', 'netflix', 'disneyplus', 'youtube', 'appletv', 'primevideo', 'abciview', 'sbs', 'applemusic'];
-const IDS = ['IkWsFHtOY9.Stremio', 'org.tizen.netflix-app', 'MCmYXNxgcu.DisneyPlus', '9Ur5IzDKqV.TizenYouTube', 'com.samsung.tv.aria-video', 'org.tizen.primevideo', 'mWK87Xghap.ABCiview', 'OyE7OuxlUi.SBSOnDemand', 'org.tizen.apple.apple-music'];
-const NAMES = ['Stremio', 'Netflix', 'Disney+', 'YouTube', 'Apple TV', 'Prime Video', 'ABC iview', 'SBS On Demand', 'Apple Music'];
-const EXTRA = 'AbCdEf1234.FamilyApp', SPOTIFY = 'rJeHak5zRg.Spotify';
+const EXTRA = 'tv.family.player', KODI = 'org.xbmc.kodi', VLC = 'org.videolan.vlc', PLEX = 'com.plexapp.android';
+const SWITCH = 'input.hw5', PC = 'input.hw6';
 const UNSAFE_NAME = 'Family <img src=x onerror="window.__catalogXss=1"> & TV';
-const CATALOG = IDS.map((id, i) => ({ id, name: NAMES[i], show: true, iconPath: '' })).concat([
-  { id: EXTRA, name: UNSAFE_NAME, show: true, iconPath: '' },
-  { id: SPOTIFY, name: 'Spotify', show: true, iconPath: '' },
-  { id: '5b8c3eb16b.BeamCTVDev', name: 'HBO Max', show: true, iconPath: '' },
-  { id: 'nClrkHome1.FrameHome', name: 'CleanFrame', show: true },
-  { id: 'AbCdEf1234.worker', name: 'Background worker', show: true },
-  { id: 'com.samsung.tv.cobalt-yt', name: 'YouTube', show: true }
-]);
+// appsJson() rows as the Android shell sends them: apps, then HDMI inputs.
+const CATALOG = [
+  { appId: EXTRA, name: UNSAFE_NAME, kind: 'app', icon: '' },
+  { appId: 'org.jellyfin.androidtv', name: 'Jellyfin', kind: 'app', icon: '' },
+  { appId: KODI, name: 'Kodi', kind: 'app', icon: '' },
+  { appId: 'com.netflix.ninja', name: 'Netflix', kind: 'app', icon: '' },
+  { appId: PLEX, name: 'Plex', kind: 'app', icon: '' },
+  { appId: 'com.amazon.amazonvideo.livingroom', name: 'Prime Video', kind: 'app', icon: '' },
+  { appId: 'org.smarttube.stable', name: 'SmartTube', kind: 'app', icon: '' },
+  { appId: VLC, name: 'VLC', kind: 'app', icon: '' },
+  { appId: SWITCH, name: 'Nintendo Switch', kind: 'input', icon: '' },
+  { appId: PC, name: 'PC', kind: 'input', icon: '' }
+];
+// Brands found in CATALOG, in device.js brand order: the default Home. SmartTube stands for YouTube.
+const PRIMARY = ['primevideo', 'youtube', 'netflix', 'jellyfin', 'nintendoswitch'];
+const PACKAGE = { primevideo: 'com.amazon.amazonvideo.livingroom', youtube: 'org.smarttube.stable', netflix: 'com.netflix.ninja', jellyfin: 'org.jellyfin.androidtv', nintendoswitch: SWITCH };
+// A full nine-entry Home: the brands, unbranded apps and the PC input. EXTRA stays off Home.
+const HOME = PRIMARY.concat([KODI, VLC, PLEX, PC]);
+const NAME = Object.fromEntries(CATALOG.map(a => [a.appId, a.name]));
+// photosJson() rows as the shell sends them (newest first). The fake serves each one from a bundled photo.
+const BING = [
+  { id: 'bing-20261020', file: 'bing-20261020', base: '/photos/', name: 'Lago di Bled', caption: 'Lago di Bled, Slovenia (© QA Photographer)', tone: 'dark', ut: { tr: 'mist', br: 'light' }, frostVeil: 0.12, listColumn: 0, dockQuiet: false, clockMist: true },
+  { id: 'bing-20261019', file: 'bing-20261019', base: '/photos/', name: 'Dolomiti', caption: 'Dolomiti, Italia (© QA Photographer)', tone: 'light', ut: { tr: 'light', br: 'mist' }, frostVeil: 0.12, listColumn: 0, dockQuiet: false, clockMist: false }
+];
+const BING_FILES = { 'bing-20261020': 'summit', 'bing-20261019': 'cove' };
 const walls = JSON.parse(readFileSync(root + 'app/assets/wallpapers/SOURCES.json', 'utf8'));
 const out = root + '.local/qa/';
 mkdirSync(out, { recursive: true });
-const sourceFiles = ['app/main.js', 'app/device.js', 'app/index.html', 'app/style.css', 'app/config.xml', 'app/assets/wallpapers/SOURCES.json', 'app/assets/wallpapers/catalog.js', 'app/assets/adaptive-ink.js', 'app/assets/icons/metrics.js'];
+const sourceFiles = ['app/main.js', 'app/device.js', 'app/index.html', 'app/style.css', 'app/assets/wallpapers/SOURCES.json', 'app/assets/wallpapers/catalog.js', 'app/assets/adaptive-ink.js', 'app/assets/icons/metrics.js'];
 const hashes = () => Object.fromEntries(sourceFiles.map(f => [f, createHash('sha256').update(readFileSync(root + f)).digest('hex')]));
-const report = { scope: 'Production UI in Chromium; mock public Tizen API only; no TV contacted.', sourceBefore: hashes(), checks: [], failures: [], pageErrors: [], expectedNetworkFailures: [] };
+const report = { scope: 'Production UI in Chromium; fake window.CleanFrameAndroid bridge only; no TV contacted.', sourceBefore: hashes(), checks: [], failures: [], pageErrors: [], expectedNetworkFailures: [] };
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-const baseline = (patch = {}) => ({ dock: PRIMARY.slice(), wallpaper: walls[0].id, mode: 'fixed', lastApp: 'netflix', theme: 'shore', ...patch });
+const records = ids => ids.filter(id => !PRIMARY.includes(id)).map(id => ({ id, appId: id, name: NAME[id], brand: '', icon: '' }));
+const baseline = (patch = {}) => ({ dock: HOME.slice(), wallpaper: walls[0].id, mode: 'fixed', lastApp: 'netflix', theme: 'shore', appRecords: records(HOME), ...patch });
 let preview, current, section = '';
 
 function check(name, pass, detail) {
@@ -41,8 +57,8 @@ async function run(name, fn) {
 }
 async function closePage() { if (current) { current.__closing = true; await current.close(); current = null; } }
 
-// Production still calls its unmodified device.js adapter.
-function installHarness({ seed, legacy, mock, catalog, minuteMs, catalogFailure, noFontAPI, storageFailure }) {
+// Production still calls its unmodified device.js adapter; only the Android bridge object is fake.
+function installHarness({ seed, legacy, mock, catalog, photos, config, is24, minuteMs, noFontAPI, storageFailure }) {
   if (!sessionStorage.getItem('__cleanframe_seeded')) {
     if (seed !== undefined) localStorage.setItem('cleanframe.home.v1', typeof seed === 'string' ? seed : JSON.stringify(seed));
     if (legacy !== undefined) localStorage.setItem('cleanframe.shore.v1', typeof legacy === 'string' ? legacy : JSON.stringify(legacy));
@@ -64,30 +80,37 @@ function installHarness({ seed, legacy, mock, catalog, minuteMs, catalogFailure,
   };
   if (noFontAPI) Object.defineProperty(document, 'fonts', { configurable: true, value: undefined });
   if (!mock) return;
-  window.__tv = { catalog, catalogFailure: !!catalogFailure, launchFailure: false, holdCatalog: false, pending: [], calls: [], catalogCalls: 0 };
-  window.tizen = {
-    ApplicationControlData: function (key, value) { this.key = key; this.value = value; },
-    ApplicationControl: function (operation, uri, mime, category, data) { Object.assign(this, { operation, uri, mime, category, data }); },
-    application: {
-      getAppsInfo(ok, fail) {
-        const tv = window.__tv;
-        tv.catalogCalls++;
-        const finish = () => tv.catalogFailure ? fail({ name: 'UnknownError', message: 'Catalogue unavailable for QA' }) : ok(tv.catalog.map(a => ({ ...a })));
-        if (tv.holdCatalog) tv.pending.push({ ok, fail }); else setTimeout(finish, 0);
-      },
-      launch(id, ok, fail) {
-        const tv = window.__tv; tv.calls.push({ method: 'launch', id });
-        setTimeout(() => tv.launchFailure ? fail({ name: 'NotFoundError', message: 'App unavailable for QA' }) : ok(), 0);
-      },
-      launchAppControl(control, id, ok, fail) {
-        const tv = window.__tv; tv.calls.push({ method: 'launchAppControl', id, control });
-        setTimeout(() => tv.launchFailure ? fail({ name: 'UnknownError', message: 'Screen unavailable for QA' }) : ok(), 0);
-      }
+  // Synchronous like the real @JavascriptInterface methods. Actions are recorded in calls; reads are counted.
+  const tv = window.__tv = { catalog, photos, is24, catalogFailure: false, launchFailure: false, calls: [], reads: { apps: 0, photos: 0, config: 0, is24: 0 } };
+  window.CleanFrameAndroid = {
+    // A Java exception in a bridge method reaches the page as a thrown Error.
+    appsJson() { tv.reads.apps++; if (tv.catalogFailure) throw new Error('Java exception was raised during method invocation'); return JSON.stringify(tv.catalog); },
+    launch(appId) { tv.calls.push(['launch', appId]); return tv.launchFailure ? 'App unavailable for QA' : ''; },
+    closeApp(appId) { tv.calls.push(['closeApp', appId]); return appId.indexOf('input.') === 0 ? 'Inputs can’t be closed.' : ''; },
+    openSettings() { tv.calls.push(['openSettings']); return tv.launchFailure ? 'Settings unavailable for QA' : ''; },
+    openPreviousLauncher() { tv.calls.push(['openPreviousLauncher']); return tv.launchFailure ? 'Previous launcher unavailable for QA' : ''; },
+    is24Hour() { tv.reads.is24++; return tv.is24; },
+    photosJson() { tv.reads.photos++; return JSON.stringify(tv.photos); },
+    refreshPhotos() { tv.calls.push(['refreshPhotos']); },
+    // The shell hands an ADB configuration over once; it survives page reloads, so remember that it was taken.
+    takeConfig() {
+      tv.reads.config++;
+      if (sessionStorage.getItem('__cleanframe_config_taken')) return '';
+      sessionStorage.setItem('__cleanframe_config_taken', '1');
+      return config || '';
     }
   };
 }
+// Bing photos live under /photos/ on the TV; serve each one from the bundled photo it stands for.
+async function servePhoto(route) {
+  const match = new URL(route.request().url()).pathname.match(/^\/photos\/(wallpapers|materials)\/(bing-\d{8})(-[a-z-]+)?\.jpg$/);
+  const file = match && BING_FILES[match[2]];
+  if (!file) return route.fulfill({ status: 404, body: 'Not found' });
+  return route.fulfill({ path: root + 'app/assets/' + match[1] + '/' + file + (match[3] || '') + '.jpg' });
+}
 async function page(options = {}) {
-  current = await preview.browser.newPage({ viewport: { width: 1920, height: 1080 } });
+  const { timezoneId, systemTime, ...harness } = options;
+  current = await preview.browser.newPage({ viewport: { width: 1920, height: 1080 }, ...(timezoneId ? { timezoneId } : {}) });
   const owner = current;
   current.setDefaultTimeout(10000);
   const expected = [];
@@ -100,7 +123,9 @@ async function page(options = {}) {
     if (expected.some(s => request.url().includes(s))) report.expectedNetworkFailures.push(failure);
     else if (failure.error !== 'net::ERR_ABORTED') report.pageErrors.push(failure);
   });
-  await current.addInitScript(installHarness, { mock: true, catalog: CATALOG, minuteMs: 60000, seed: baseline(), ...options });
+  await current.route('**/photos/**', servePhoto);
+  if (systemTime) await current.clock.setSystemTime(new Date(systemTime));
+  await current.addInitScript(installHarness, { mock: true, catalog: CATALOG, photos: BING, config: '', is24: true, minuteMs: 60000, seed: baseline(), ...harness });
   await current.goto(preview.baseURL + '/home/');
   await ready();
   await current.waitForLoadState('networkidle');
@@ -111,6 +136,8 @@ const stored = () => current.evaluate(key => JSON.parse(localStorage.getItem(key
 const call = (method, ...args) => current.evaluate(([m, a]) => ShoreQA[m](...a), [method, args]);
 const ready = () => current.waitForFunction(() => window.ShoreQA && typeof ShoreQA.ready === 'function' && ShoreQA.ready(), null, { timeout: 15000 });
 const nav = (...keys) => call('nav', keys);
+const calls = () => current.evaluate(() => window.__tv.calls);
+const lastCall = async () => (await calls()).at(-1);
 async function act(action) { const result = await call('activate', action); if (result === null || result === false) throw Error('Action unavailable: ' + action); return result; }
 async function scene(name) { await call('scene', name); await current.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))); }
 async function look(patch) { await call('look', patch); await ready(); }
@@ -169,6 +196,7 @@ const wallpaperSaved = () => current.evaluate(() => {
     backdrop: { src: bg.currentSrc || bg.src, opacity: bgStyle.opacity, filter: bgStyle.filter, veil: veilStyle.background, veilOpacity: veilStyle.opacity } };
 });
 const wallpaperApplied = () => current.locator('.wallpaper-choice[aria-checked="true"]').evaluateAll(elements => elements.map(e => e.getAttribute('data-action')));
+const wallpaperNames = () => current.locator('.wallpaper-choice .setting-name').allTextContents();
 const wallpaperBundle = () => current.evaluate(() => Object.fromEntries(['photo', 'matImg', 'phFieldImg', 'phFieldImgAlt', 'utFieldImg', 'utFieldImgAlt'].map(id => [id, document.getElementById(id).currentSrc || document.getElementById(id).src])));
 const previewFrame = () => current.evaluate(() => {
   const e = document.getElementById('scene'), r = e.getBoundingClientRect(), css = getComputedStyle(e);
@@ -192,11 +220,26 @@ const wallpaperListGeometry = () => current.evaluate(() => {
 async function editor() { await scene('settings'); await act('settings.editor'); await current.waitForFunction(() => document.querySelector('[data-action^="editor.move."]')); await current.waitForFunction(() => !ShoreQA.state().catalog.loading); }
 async function remove(id) { await act('editor.move.' + id); await nav('back', 'right', 'ok'); }
 async function library() { await scene('home'); await act('util.apps'); await current.waitForFunction(() => !ShoreQA.state().catalog.loading); }
+const libraryNames = () => current.locator('[data-action^="apps.open."] .label').allTextContents();
 async function noLiveFilters() {
   return current.evaluate(() => [...document.querySelectorAll('#stage, #stage *')].filter(e => e.getClientRects().length).map(e => {
     const s = getComputedStyle(e); return { tag: e.tagName, cls: e.className, filter: s.filter, backdrop: s.backdropFilter || s.webkitBackdropFilter || 'none' };
   }).filter(s => /blur|url\(/.test(s.filter) || s.backdrop !== 'none'));
 }
+// Photo mode is visible state only: the stage class, the hidden Home layers and the photo caption.
+const photoMode = () => current.evaluate(() => {
+  const stage = document.getElementById('stage'), opacity = id => Number(getComputedStyle(document.getElementById(id)).opacity);
+  return { on: stage.classList.contains('is-photo-mode'), utils: opacity('utils'), dock: opacity('dock'), list: opacity('phScene'), caption: opacity('caption'), photo: opacity('photo'),
+    clock: (document.querySelector('#caption .clock') || {}).textContent || '', photoCaption: document.getElementById('photoCaption').textContent, photoCaptionOpacity: opacity('photoCaption') };
+});
+const photoHidden = () => current.waitForFunction(() => ['utils', 'dock', 'phScene'].every(id => getComputedStyle(document.getElementById(id)).opacity === '0'));
+const focusStatus = () => current.evaluate(() => { const e = document.getElementById('focusStatus'); return { on: e.classList.contains('is-on') && getComputedStyle(e).display !== 'none', text: e.textContent }; });
+const clockText = () => current.evaluate(() => document.querySelector('#caption .clock').textContent);
+// The rendered clock matches the page's own time in the given format (waits across a minute boundary).
+const clockShows = format => current.waitForFunction(f => {
+  const d = new Date(), h = f === '12' ? d.getHours() % 12 || 12 : d.getHours();
+  return document.querySelector('#caption .clock').textContent === h + ':' + String(d.getMinutes()).padStart(2, '0');
+}, format, { timeout: 3000 }).then(() => true, () => false);
 
 try {
   preview = await openPreview();
@@ -206,6 +249,7 @@ try {
       const s = await state();
       check(theme + ' preserves order, wallpaper and rotation', same(s.dock, ['youtube', 'netflix']) && s.wallpaper === walls[1].id && s.mode === '15' && s.lastApp === 'youtube', s);
       check(theme + ' maps to intended two-layout appearance', s.look.layout === (theme === 'list' ? 'list' : 'dock') && s.look.bg === (theme === 'list' ? 'dark' : 'photo'), s.look);
+      check(theme + ' gains the TV clock format and built-in photos', s.look.clock === '24' && s.look.source === 'builtin', s.look);
       await closePage();
     }
     await page({ seed: undefined, legacy: baseline({ theme: 'list', dock: ['netflix'], lastApp: 'netflix' }) });
@@ -223,9 +267,12 @@ try {
     const s = await state();
     check('Invalid values recover usable bounded Home', s.dock.length >= 1 && s.dock.length <= 9 && walls.some(w => w.id === s.wallpaper) && ['fixed', 'open', '5', '15', '60'].includes(s.mode), s);
     await closePage();
-    await page({ seed: baseline({ dock: [EXTRA, 'netflix'], lastApp: EXTRA }), catalogFailure: true });
+    await page({ seed: baseline({ dock: [EXTRA, 'netflix'], lastApp: EXTRA, appRecords: [{ id: EXTRA, appId: EXTRA, name: UNSAFE_NAME, brand: '', icon: '' }] }) });
+    await current.evaluate(() => { __tv.catalogFailure = true; });
     await library();
     check('Discovery failure preserves saved native pin', (await state()).dock.includes(EXTRA));
+    await scene('home');
+    check('Saved native pin stays on Home with its saved name', (await call('actions')).includes('home.app.' + EXTRA) && (await current.locator('[data-action="home.app.' + EXTRA + '"]').getAttribute('aria-label')) === UNSAFE_NAME);
   });
   await run('Startup fallbacks remain usable', async () => {
     await page({ noFontAPI: true });
@@ -234,45 +281,76 @@ try {
     await page({ seed: baseline({ mode: 'open' }), storageFailure: true });
     check('Failed open-mode write retains prior photo', (await state()).wallpaper === walls[0].id && (await stored()).wallpaper === walls[0].id);
   });
-  await run('Real catalogue and native launch boundary', async () => {
+  await run('Fresh Home from the bridge catalogue', async () => {
+    await page({ seed: undefined });
+    const s = await state();
+    check('Fresh Home lists the installed brands in brand order', same(s.dock, PRIMARY), s.dock);
+    check('Fresh Home starts on its first app', s.selected === PRIMARY[0] && s.focusAction === 'home.app.' + PRIMARY[0], s.focusAction);
+    check('The Switch input joins Home as the Nintendo Switch brand', (await current.locator('[data-action="home.app.nintendoswitch"]').getAttribute('aria-label')) === 'Nintendo Switch');
+    check('Home reads the catalogue, photos, clock format and configuration from the bridge', await current.evaluate(() => Object.values(__tv.reads).every(n => n > 0)), await current.evaluate(() => __tv.reads));
+    check('Starting Home calls no bridge action', (await calls()).length === 0, await calls());
+    await closePage();
+    await page({ seed: undefined, catalog: CATALOG.filter(a => [KODI, VLC, PC].includes(a.appId)) });
+    check('Without a known brand Home starts with the installed apps, not inputs', same((await state()).dock, [KODI, VLC]), (await state()).dock);
+  });
+  await run('Bridge catalogue and native launch boundary', async () => {
     await page(); await library();
-    const names = await current.locator('[data-action^="apps.open."] .label').allTextContents();
-    check('Consumer catalogue excludes services, self and duplicate YouTube', names.length === 12 && names.filter(n => n === 'YouTube').length === 1 && !names.includes('CleanFrame') && !names.includes('Background worker'), names);
+    const names = await libraryNames();
+    check('All apps lists every bridge app and input once', names.length === CATALOG.length && names.includes('Nintendo Switch') && names.includes('PC'), names);
+    check('Brand apps show their brand name once', names.filter(n => n === 'YouTube').length === 1 && !names.includes('SmartTube'), names);
     check('Installed names stay text, including HTML punctuation', names.includes(UNSAFE_NAME) && !(await current.evaluate(() => window.__catalogXss)));
-    check('Exploration fixtures do not appear', !names.includes('Plex') && !names.includes('Jellyfin'));
-    await act('apps.open.' + SPOTIFY); await current.waitForFunction(() => __tv.calls.length > 0);
-    check('Extra-brand app launches native ID', (await current.evaluate(() => __tv.calls.at(-1))).id === SPOTIFY);
-    await current.evaluate(() => window.dispatchEvent(new Event('focus')));
-    await scene('home'); await act('home.app.netflix'); await current.waitForFunction(() => __tv.calls.length === 2);
-    check('Primary app keeps verified target', (await current.evaluate(() => __tv.calls.at(-1))).id === IDS[1]);
-    await current.evaluate(() => window.dispatchEvent(new Event('focus')));
-    await act('util.art'); await current.waitForFunction(() => __tv.calls.length === 3);
-    const art = await current.evaluate(() => __tv.calls.at(-1));
-    check('Art Mode uses app-control with fullscreen request', art.method === 'launchAppControl' && art.id === 'org.tizen.art-app' && art.control.data.some(d => d.key === 'mode' && d.value[0] === 'fullscreen'), art);
-    await current.evaluate(() => window.dispatchEvent(new Event('focus'))); await group('samsung'); await act('samsung.home');
-    await current.waitForFunction(() => __tv.calls.length === 4);
-    check('Samsung escape keeps CSFS target', (await current.evaluate(() => __tv.calls.at(-1))).id === 'com.samsung.tv.csfs');
-    await current.evaluate(() => window.dispatchEvent(new Event('focus'))); await group('samsung'); await act('samsung.settings');
-    await current.waitForFunction(() => __tv.calls.length === 5);
-    check('TV settings keeps installed target', (await current.evaluate(() => __tv.calls.at(-1))).id === 'com.samsung.tv.coba.setting');
-    await current.evaluate(() => { window.dispatchEvent(new Event('focus')); __tv.launchFailure = true; });
+    check('The browser mock catalogue does not appear with a bridge', !names.some(n => ['RaiPlay', 'Mediaset Infinity', 's0undTV', 'Settings'].includes(n)), names);
+    await act('apps.open.' + KODI);
+    check('Unbranded app launches its package', same(await calls(), [['launch', KODI]]), await calls());
+    await scene('home'); await act('home.app.youtube');
+    check('YouTube on Home launches the preferred SmartTube package', same(await lastCall(), ['launch', PACKAGE.youtube]));
+    await act('home.app.netflix');
+    check('Primary app keeps its verified package', same(await lastCall(), ['launch', PACKAGE.netflix]));
+    await group('android'); await act('android.settings');
+    check('TV settings opens through the bridge', same(await lastCall(), ['openSettings']) && (await state()).settingsGroup === 'android');
+    await group('android'); await act('android.previous');
+    check('Previous launcher opens through the bridge', same(await lastCall(), ['openPreviousLauncher']) && (await state()).settingsGroup === 'android');
+    await current.evaluate(() => { __tv.launchFailure = true; });
     await scene('home'); await act('home.app.netflix'); await current.waitForFunction(() => ShoreQA.where().view === 'message');
-    check('Launch failure is shown', /could not|unavailable|try again/i.test(await current.locator('#stage').innerText()));
+    check('Launch failure shows the bridge message', (await current.locator('#stage').innerText()).includes('App unavailable for QA'));
+    await nav('back');
+    check('Back from the failure returns Home on the same app', (await call('where')).view === 'home' && (await state()).focusAction === 'home.app.netflix');
+    await group('android'); await act('android.settings'); await current.waitForFunction(() => ShoreQA.where().view === 'message');
+    check('TV settings failure shows the bridge message', (await current.locator('#stage').innerText()).includes('Settings unavailable for QA'));
+    await nav('back');
+    check('Back from the TV settings failure returns to Android TV', (await state()).settingsGroup === 'android' && (await state()).focusAction === 'android.settings');
+  });
+  await run('HDMI inputs in All apps and on Home', async () => {
+    await page(); await library();
+    const actions = await call('actions');
+    check('Both inputs are listed in All apps', actions.includes('apps.open.nintendoswitch') && actions.includes('apps.open.' + PC), actions);
+    await act('apps.open.' + PC);
+    check('An unbranded input launches its input id', same(await lastCall(), ['launch', PC]));
+    await act('apps.open.nintendoswitch');
+    check('The Switch brand launches its input id', same(await lastCall(), ['launch', SWITCH]));
+    await scene('home'); await act('home.app.nintendoswitch');
+    check('The Switch on Home launches its input id', same(await lastCall(), ['launch', SWITCH]));
+    await editor(); await remove(PC);
+    check('An input leaves Home like an app', !(await stored()).dock.includes(PC) && (await state()).focusAction === 'editor.add.' + PC);
+    await nav('ok');
+    check('An input returns to Home in the same position', same((await stored()).dock, HOME));
   });
   await run('Catalogue failure and retry', async () => {
-    await page({ catalogFailure: true }); await library();
-    check('Catalogue failure leaves Home intact', same((await state()).dock, PRIMARY));
+    await page(); await current.evaluate(() => { __tv.catalogFailure = true; }); await library();
+    check('Catalogue failure leaves Home intact', same((await state()).dock, HOME));
+    check('Catalogue failure is shown with a retry', (await call('actions')).includes('apps.retry') && (await state()).catalog.error && !(await current.locator('[data-action^="apps.open."]').count()), (await state()).catalog);
     await current.evaluate(() => { __tv.catalogFailure = false; }); await act('apps.retry');
     await current.waitForSelector('[data-action="apps.open.' + EXTRA + '"]');
-    check('Retry displays real installed names', (await current.locator('[data-action^="apps.open."]').count()) === 12);
+    check('Retry displays real installed names', (await current.locator('[data-action^="apps.open."]').count()) === CATALOG.length);
   });
   await run('Native icon and failed-image fallback', async () => {
-    await page({ catalog: CATALOG.map(a => a.id === EXTRA ? { ...a, iconPath: '/home/assets/icons/netflix.svg' } : a) });
+    await page({ catalog: CATALOG.map(a => a.appId === EXTRA ? { ...a, icon: '/icons/' + EXTRA + '.png' } : a) });
+    await current.route('**/icons/' + EXTRA + '.png', route => route.fulfill({ path: root + 'app/icon.png' }));
     await library();
     await current.waitForFunction(id => { const row = document.querySelector('[data-action="apps.open.' + id + '"]'); const img = row && row.querySelector('img'); return img && img.complete && img.naturalWidth > 0; }, EXTRA);
     check('Unbranded installed app uses its native icon', await current.evaluate(id => { const img = document.querySelector('[data-action="apps.open.' + id + '"] img'); return img && getComputedStyle(img).display !== 'none' && img.parentNode.classList.contains('has-native-icon'); }, EXTRA));
-    current.__expectedFailures.push('/missing-native-icon.png');
-    await current.evaluate(id => { __tv.catalog.find(a => a.id === id).iconPath = '/home/assets/icons/missing-native-icon.png'; }, EXTRA);
+    current.__expectedFailures.push('/icons/missing-native-icon.png');
+    await current.evaluate(id => { __tv.catalog.find(a => a.appId === id).icon = '/icons/missing-native-icon.png'; }, EXTRA);
     await library();
     await current.waitForFunction(id => { const img = document.querySelector('[data-action="apps.open.' + id + '"] img'); return img && img.src.includes('/missing-native-icon.png') && img.complete; }, EXTRA);
     const fallback = await current.evaluate(id => {
@@ -281,31 +359,35 @@ try {
     }, EXTRA);
     check('Failed native icon leaves readable initials and app name', fallback.imageDisplay === 'none' && fallback.initialsVisibility === 'visible' && fallback.text.includes('Family'), fallback);
   });
-  await run('Catalogue response after closing and reopening', async () => {
-    await page();
-    await current.evaluate(() => { __tv.holdCatalog = true; });
-    await act('util.apps'); await nav('back'); await act('util.apps');
-    const count = await current.evaluate(() => __tv.pending.length);
-    check('Concurrent catalogue entry is coalesced', count === 1, count);
-    await current.evaluate(() => { __tv.holdCatalog = false; __tv.pending.shift().ok(__tv.catalog); });
-    await current.waitForFunction(() => !ShoreQA.state().catalog.loading);
-    check('Delayed catalogue safely fills reopened view', (await call('where')).view === 'apps' && (await state()).catalog.ids.includes(EXTRA) && (await call('where')).focusCount === 1);
+  await run('Catalogue refresh when apps change', async () => {
+    await page(); await library();
+    const reads = await current.evaluate(() => __tv.reads.apps);
+    await nav('right', 'right');
+    check('Remote focus reaches an app in All apps', (await state()).focusAction === 'apps.open.' + KODI, (await state()).focusAction);
+    await current.evaluate(() => { __tv.catalog.push({ appId: 'com.example.arte', name: 'Arte', kind: 'app', icon: '' }); window.dispatchEvent(new Event('cleanframe:apps-changed')); });
+    check('A newly installed app appears when the shell reports a change', (await state()).catalog.ids.includes('com.example.arte') && (await current.evaluate(() => __tv.reads.apps)) > reads);
+    check('Focus stays on the same app as the list changes', (await state()).focusAction === 'apps.open.' + KODI && (await call('where')).focusCount === 1, await call('where'));
+    await current.evaluate(id => { __tv.catalog = __tv.catalog.filter(a => a.appId !== id); window.dispatchEvent(new Event('cleanframe:apps-changed')); }, KODI);
+    const where = await call('where');
+    check('Uninstalling the focused app keeps one focus in All apps', !(await state()).catalog.ids.includes(KODI) && where.view === 'apps' && where.focusCount === 1 && where.focusAction.startsWith('apps.open.'), where);
+    await nav('back'); await act('util.apps');
+    check('Reopening All apps reads the catalogue again', (await current.evaluate(() => __tv.reads.apps)) > reads + 2 && (await call('where')).focusCount === 1);
   });
   await run('Immediate edits, undo, move cancellation and limits', async () => {
     await page(); await editor();
     const start = (await state()).dock;
     await remove('netflix');
-    check('Remove persists membership and keeps installation', !(await stored()).dock.includes('netflix') && (await current.evaluate(() => __tv.catalog.some(a => a.id === 'org.tizen.netflix-app'))));
+    check('Remove persists membership and keeps installation', !(await stored()).dock.includes('netflix') && (await current.evaluate(() => __tv.catalog.some(a => a.appId === 'com.netflix.ninja'))) && (await calls()).length === 0);
     check('Focus follows removal into addable apps', (await state()).focusAction === 'editor.add.netflix', (await state()).focusAction);
     await nav('ok'); check('Second OK restores same position', same((await stored()).dock, start));
     await remove('netflix'); await act('editor.undo'); check('Undo persists previous membership', same((await stored()).dock, start));
     await act('editor.move.netflix'); await nav('down'); check('Unfinished move does not write', same((await stored()).dock, start));
     await nav('back'); check('Back cancels unfinished move', same((await state()).dock, start));
     await act('editor.move.netflix'); await nav('down', 'ok');
-    const moved = start.slice(); [moved[1], moved[2]] = [moved[2], moved[1]];
+    const moved = start.slice(), at = moved.indexOf('netflix'); [moved[at], moved[at + 1]] = [moved[at + 1], moved[at]];
     check('Placed move persists immediately', same((await stored()).dock, moved));
     await act('editor.add.' + EXTRA); check('Nine-app cap prevents addition', (await state()).dock.length === 9 && !(await state()).dock.includes(EXTRA));
-    await remove('stremio'); await act('editor.add.' + EXTRA);
+    await remove(HOME[0]); await act('editor.add.' + EXTRA);
     check('Native app can be pinned with stable ID', (await stored()).dock.includes(EXTRA) && (await state()).dock.length === 9);
     check('Native pin retains readable metadata for failed discovery', (await stored()).appRecords.some(a => a.id === EXTRA && a.name === UNSAFE_NAME));
     await current.reload(); await ready(); check('Native pin survives reload', (await state()).dock.includes(EXTRA));
@@ -333,6 +415,7 @@ try {
       check('Independent axes ' + [bg, layout, focus].join('/'), s.look.bg === bg && s.look.layout === layout && s.look.focus === focus && s.shown.bg === bg, s.look);
     }
     for (const axis of ['apps', 'controls']) for (const value of ['icons', 'both', 'text']) { await look({ [axis]: value }); check(axis + ' ' + value + ' persists', (await state()).look[axis] === value); }
+    for (const value of ['12', '24']) { await look({ clock: value }); check('clock ' + value + ' persists and renders', (await state()).look.clock === value && (await stored()).look.clock === value && await clockShows(value)); }
     await look({ bg: 'photo', layout: 'dock', focus: 'glass', apps: 'both', controls: 'icons' });
     for (const material of ['soft', 'frost', 'tint']) { await look({ material }); check(material + ' matches displayed bundle', (await state()).shown.material === material && (await state()).look.material === material); }
     const fonts = (await state()).fonts.available; check('Font catalogue includes default', fonts.includes('manrope'));
@@ -361,11 +444,12 @@ try {
   });
   await run('Settings overview and visible choices', async () => {
     await page(); await scene('settings');
-    const expected = ['settings.group.background', 'settings.group.layout', 'settings.group.typography', 'settings.group.focus', 'settings.editor', 'settings.group.samsung'];
+    const expected = ['settings.group.background', 'settings.group.layout', 'settings.group.typography', 'settings.group.focus', 'settings.editor', 'settings.group.android'];
     check('Overview has all six settings groups', same((await call('actions')).filter(a => expected.includes(a)).sort(), expected.slice().sort()));
+    check('No Samsung group remains', !(await call('actions')).some(a => /samsung/i.test(a)) && !/samsung/i.test(await current.locator('#stage').innerText()));
     const specs = {
-      background: { bg: ['dark', 'light', 'photo'] },
-      layout: { layout: ['list', 'dock'], apps: ['icons', 'both', 'text'], controls: ['icons', 'both', 'text'] },
+      background: { bg: ['dark', 'light', 'photo'], source: ['builtin', 'bing'] },
+      layout: { layout: ['list', 'dock'], apps: ['icons', 'both', 'text'], controls: ['icons', 'both', 'text'], clock: ['24', '12'] },
       typography: { font: (await state()).fonts.available },
       focus: { focus: ['type', 'glass'], material: ['soft', 'frost', 'tint'] }
     };
@@ -389,13 +473,14 @@ try {
     check('All five rotation modes are visible together', same(rotationRows.map(r => r.action).sort(), ['fixed', 'open', '5', '15', '60'].map(v => 'rotation.' + v).sort()), rotationRows);
     await nav('back');
     check('Rotation Back restores its Background row', (await state()).settingsGroup === 'background' && (await state()).focusAction === 'background.rotation', await call('where'));
-    await group('samsung');
-    const samsungActions = await call('actions');
-    check('Samsung group shows both native actions', samsungActions.includes('samsung.home') && samsungActions.includes('samsung.settings'));
+    await group('android');
+    const androidActions = await call('actions');
+    check('Android TV group shows both native actions', androidActions.includes('android.settings') && androidActions.includes('android.previous'), androidActions);
+    check('Android TV group opens on TV settings', (await state()).focusAction === 'android.settings');
   });
   await run('Settings focus never changes the applied Home', async () => {
     await page();
-    for (const name of ['background', 'layout', 'typography', 'focus', 'samsung']) {
+    for (const name of ['background', 'layout', 'typography', 'focus', 'android']) {
       await group(name); const before = await settingsSnapshot();
       const visited = new Set();
       for (const direction of ['right', 'right', 'down', 'left', 'left', 'down', 'right', 'right', 'down', 'left', 'up', 'up', 'up', 'right']) {
@@ -413,7 +498,7 @@ try {
       await nav('back');
       check(name + ' Back cancels the unconfirmed choice', same(await settingsSnapshot(), before) && (await state()).focusAction === 'settings.group.' + name);
     }
-    check('Browsing Samsung does not launch a native app', (await current.evaluate(() => __tv.calls.length)) === 0);
+    check('Browsing Android TV calls no bridge action', (await calls()).length === 0, await calls());
     await group('background'); await act('background.rotation'); const before = await settingsSnapshot();
     await nav('down', 'down', 'up', 'right', 'left');
     check('Rotation arrows do not save a mode', same(await settingsSnapshot(), before));
@@ -437,6 +522,7 @@ try {
       ['layout', 'layout', ['list', 'dock']],
       ['layout', 'apps', ['icons', 'text', 'both']],
       ['layout', 'controls', ['text', 'both', 'icons']],
+      ['layout', 'clock', ['12', '24']],
       ['typography', 'font', (await state()).fonts.available],
       ['focus', 'focus', ['type', 'glass']],
       ['focus', 'material', ['frost', 'tint', 'soft']]
@@ -452,7 +538,9 @@ try {
         const untouched = { ...after.committed, [axis]: before.committed[axis] };
         const prefix = { bg: 'bg', layout: 'l', apps: 'a', controls: 'u', focus: 'f', material: 'm', font: 'font' }[axis];
         const shown = !Object.hasOwn(after.shown, axis) || after.shown[axis] === value;
-        check(axis + ' OK applies ' + value + ' once', after.committed[axis] === value && shown && after.rendered.includes(prefix + '-' + value) && same(untouched, before.committed) && expectedWrites === after.writes && after.storageAttempts - before.storageAttempts === expectedWrites - before.writes && rows.some(r => r.action === 'choice.' + axis + '.' + value && r.checked === 'true'), { before, after, rows });
+        // The clock has no stage class; its rendered text carries the format.
+        const rendered = prefix ? after.rendered.includes(prefix + '-' + value) : await clockShows(value);
+        check(axis + ' OK applies ' + value + ' once', after.committed[axis] === value && shown && rendered && same(untouched, before.committed) && expectedWrites === after.writes && after.storageAttempts - before.storageAttempts === expectedWrites - before.writes && rows.some(r => r.action === 'choice.' + axis + '.' + value && r.checked === 'true'), { before, after, rows });
       }
       const applied = await settingsSnapshot(); await nav('back');
       check(axis + ' applied choice survives Back', same(await settingsSnapshot(), applied) && (await state()).focusAction === 'settings.group.' + name);
@@ -495,7 +583,7 @@ try {
     await page();
     for (const bg of ['dark', 'light']) {
       await look({ bg }); await group('background'); const before = await settingsSnapshot();
-      for (const action of ['background.wallpaper', 'background.rotation']) {
+      for (const action of ['background.wallpaper', 'background.rotation', 'choice.source.builtin', 'choice.source.bing']) {
         check(bg + ' marks ' + action + ' inactive', await current.locator('[data-action="' + action + '"]').getAttribute('aria-disabled') === 'true');
         const focusBefore = (await state()).focusAction;
         await current.locator('[data-action="' + action + '"]').click({ force: true });
@@ -503,6 +591,7 @@ try {
       }
       await walkEnabledChoices();
       check(bg + ' remote navigation skips inactive photo tools', same(await settingsSnapshot(), before));
+      check(bg + ' inactive photo source asks the TV for nothing', (await calls()).length === 0, await calls());
       const reason = await current.locator('.setting-reason:visible').allTextContents();
       check(bg + ' explains how to enable photo tools', reason.some(text => /photo/i.test(text) && /wallpaper|rotation/i.test(text)), reason);
     }
@@ -580,7 +669,7 @@ try {
     for (const width of [1920, 1280]) {
       await current.setViewportSize({ width, height: width * 9 / 16 });
       await current.waitForFunction(w => Math.abs(document.getElementById('stage').getBoundingClientRect().width - w) < 1, width);
-      for (const name of ['background', 'layout', 'typography', 'focus', 'samsung', 'rotation']) {
+      for (const name of ['background', 'layout', 'typography', 'focus', 'android', 'rotation']) {
         await group(name === 'rotation' ? 'background' : name);
         if (name === 'rotation') await act('background.rotation');
         const geometry = await current.evaluate(() => {
@@ -605,6 +694,7 @@ try {
     await page();
     const resources = await current.evaluate(() => performance.getEntriesByType('resource').map(r => r.name));
     check('No wallpaper thumbnails loaded at startup', !resources.some(u => /-thumb\./.test(u)), resources.filter(u => /thumb/.test(u)));
+    check('Built-in photos make no Bing photo requests', !resources.some(u => u.includes('/photos/')), resources.filter(u => u.includes('/photos/')));
     await wallpaper();
     const original = (await stored()).wallpaper;
     await nav('down'); await wallpaperSettled(walls[1].id);
@@ -629,7 +719,7 @@ try {
       await group('background'); const frame = await previewFrame(), before = await wallpaperSaved();
       await act('background.wallpaper');
       await current.waitForFunction(() => ShoreQA.state().view === 'wallpaper');
-      const names = await current.locator('.wallpaper-choice .setting-name').allTextContents();
+      const names = await wallpaperNames();
       check(layout + ' Wallpaper shows all fifteen named choices at ' + width, same(names, walls.map(w => w.name)), names);
       check('Wallpaper entry keeps the existing Home frame ' + layout + '/' + width, same(await previewFrame(), frame));
       const first = await wallpaperListGeometry();
@@ -805,6 +895,199 @@ try {
     await nav('ok'); await ready();
     check('A missing thumbnail does not prevent applying its full photo', (await state()).committed.wall === target.id && Object.values(await wallpaperBundle()).every(src => src.includes('/' + target.id)));
   });
+  await run('Photo source switches between built-in and Bing photos', async () => {
+    await page(); await group('background');
+    const sources = (await radios()).filter(r => r.action.startsWith('choice.source.'));
+    check('Photo source offers Built-in and Bing with Built-in applied', same(sources.map(r => r.action), ['choice.source.builtin', 'choice.source.bing']) && sources[0].checked === 'true' && sources[1].checked === 'false', sources);
+    await act('background.wallpaper');
+    check('Built-in picker lists only the fifteen bundled photos', same(await wallpaperNames(), walls.map(w => w.name)), await wallpaperNames());
+    await act('wallpaper.back'); await ready();
+    const before = await state();
+    await choice('source', 'bing'); await ready();
+    let s = await state();
+    check('Choosing Bing asks the TV for fresh photos', same(await calls(), [['refreshPhotos']]), await calls());
+    check('Choosing Bing applies the newest Bing photo once', s.look.source === 'bing' && s.wallpaper === BING[0].id && s.shown.wall === BING[0].id && s.writes === before.writes + 1 && (await stored()).look.source === 'bing', s);
+    check('The Bing photo and its materials load from its own path', Object.values(await wallpaperBundle()).every(src => src.includes('/photos/') && src.includes(BING[0].id)), await wallpaperBundle());
+    check('Background names the applied Bing photo', (await current.locator('[data-action="background.wallpaper"]').innerText()).includes(BING[0].name));
+    await act('background.wallpaper');
+    check('Bing picker lists only the Bing photos', same(await wallpaperNames(), BING.map(p => p.name)), await wallpaperNames());
+    check('Bing picker counts only the Bing photos', /1 of 2/.test(await current.locator('.wallpaper-count').innerText()));
+    await nav('down'); await wallpaperSettled(BING[1].id); await nav('ok'); await ready();
+    check('A Bing photo applies from the picker', (await state()).committed.wall === BING[1].id && (await stored()).wallpaper === BING[1].id);
+    await nav('back'); await ready();
+    await choice('source', 'builtin'); await ready();
+    s = await state();
+    check('Back to Built-in shows the first bundled photo', s.look.source === 'builtin' && s.wallpaper === walls[0].id && s.shown.wall === walls[0].id, s);
+    check('Returning to Built-in asks the TV for nothing', (await calls()).length === 1, await calls());
+    await act('background.wallpaper');
+    check('Built-in picker again lists only the bundled photos', same(await wallpaperNames(), walls.map(w => w.name)));
+    await act('wallpaper.back'); await ready();
+    await current.evaluate(() => window.dispatchEvent(new Event('cleanframe:photos-updated')));
+    check('New Bing photos leave a built-in Home unchanged', (await state()).wallpaper === walls[0].id && (await state()).writes === s.writes);
+  });
+  await run('Bing source before the first download and rotation within it', async () => {
+    await page({ photos: [] }); await group('background'); await choice('source', 'bing'); await ready();
+    let s = await state();
+    check('Bing without photos keeps the built-in photo', s.look.source === 'bing' && s.wallpaper === walls[0].id && s.shown.wall === walls[0].id, s);
+    check('The source row says when Bing photos appear', (await current.locator('.setting-reason:visible').allTextContents()).some(t => /first download/i.test(t)));
+    await act('background.wallpaper');
+    check('Until Bing photos arrive the picker keeps the bundled photos', same(await wallpaperNames(), walls.map(w => w.name)));
+    await act('wallpaper.back'); await ready();
+    await current.evaluate(photos => { __tv.photos = photos; window.dispatchEvent(new Event('cleanframe:photos-updated')); }, BING);
+    await current.waitForFunction(id => ShoreQA.state().committed.wall === id && !ShoreQA.state().pending, BING[0].id);
+    s = await state();
+    check('Arriving Bing photos replace the fallback photo', s.shown.wall === BING[0].id && (await stored()).wallpaper === BING[0].id, s);
+    check('The waiting note goes once photos arrive', !(await current.locator('.setting-reason:visible').allTextContents()).some(t => /first download/i.test(t)));
+    await closePage();
+    await page({ seed: baseline({ mode: 'open', look: { source: 'bing', wall: BING[0].id } }) });
+    check('Open rotation stays within the Bing photos', (await state()).wallpaper === BING[1].id && (await state()).look.source === 'bing');
+    await current.reload(); await ready();
+    check('Open rotation wraps within the Bing photos', (await state()).wallpaper === BING[0].id);
+  });
+  await run('Photo mode', async () => {
+    await page();
+    for (const layout of ['dock', 'list']) {
+      await look({ layout }); await scene('home');
+      check(layout + ' Home starts outside Photo mode', !(await photoMode()).on);
+      await nav(layout === 'dock' ? 'up' : 'right');
+      const before = await call('where');
+      check(layout + ' Photo mode is the first Home control', before.focusAction === 'util.photo', before);
+      await nav('ok'); await photoHidden();
+      const inside = await photoMode();
+      check(layout + ' OK enters Photo mode', inside.on && (await call('where')).view === 'home', inside);
+      check(layout + ' Photo mode hides apps and controls but keeps the photo and clock', inside.utils === 0 && inside.dock === 0 && inside.list === 0 && inside.photo > 0 && inside.caption > 0 && /^\d{1,2}:\d{2}$/.test(inside.clock), inside);
+      check(layout + ' Built-in photos have no caption in Photo mode', inside.photoCaption === '');
+      await current.screenshot({ path: out + 'photo-mode-' + layout + '.jpg', quality: 90 });
+      await nav(layout === 'dock' ? 'down' : 'left');
+      check(layout + ' A key leaves Photo mode without acting on it', !(await photoMode()).on && same(await call('where'), before), { before, after: await call('where') });
+      await nav('ok'); await nav('ok');
+      check(layout + ' OK in Photo mode only leaves it', !(await photoMode()).on && same(await call('where'), before), await call('where'));
+      await nav('ok'); await nav('back');
+      check(layout + ' Back in Photo mode only leaves it', !(await photoMode()).on && same(await call('where'), before));
+    }
+    await nav('ok'); await current.keyboard.down('Enter'); await current.waitForTimeout(800); await current.keyboard.up('Enter');
+    check('Held OK in Photo mode only leaves it', !(await photoMode()).on && (await calls()).length === 0 && (await call('where')).focusAction === 'util.photo');
+    await nav('ok'); await current.keyboard.press('ArrowLeft');
+    check('A physical arrow leaves Photo mode with focus kept', !(await photoMode()).on && (await call('where')).focusAction === 'util.photo');
+    await nav('ok'); await current.evaluate(() => window.CleanFrameBack());
+    check('The remote Back key from the shell only leaves Photo mode', !(await photoMode()).on && (await call('where')).view === 'home' && (await call('where')).focusAction === 'util.photo');
+    await nav('ok'); await current.evaluate(() => window.CleanFrameHome());
+    check('The Home button leaves Photo mode', !(await photoMode()).on && (await call('where')).view === 'home' && (await call('where')).focusCount === 1);
+    check('Photo mode calls no bridge action', (await calls()).length === 0, await calls());
+    await closePage();
+    await page({ seed: baseline({ look: { source: 'bing', wall: BING[0].id } }) });
+    await act('util.photo'); await photoHidden();
+    await current.waitForFunction(() => Number(getComputedStyle(document.getElementById('photoCaption')).opacity) > 0.5);
+    const bing = await photoMode();
+    check('Bing photos show their caption in Photo mode', bing.on && bing.photoCaption === BING[0].caption && bing.photoCaptionOpacity > 0, bing);
+    await nav('down');
+    check('Leaving Photo mode removes the caption', !(await photoMode()).on && (await photoMode()).photoCaption === '');
+  });
+  await run('Back and Home on the launcher', async () => {
+    await page(); const before = await call('where');
+    await nav('back'); await current.keyboard.press('Escape');
+    check('Back on Home stays on the selected app', same(await call('where'), before) && (await calls()).length === 0, await call('where'));
+    check('Back on Home shows no message', !(await call('actions')).some(a => a.startsWith('message.')));
+    await nav('up'); await nav('back');
+    check('Back from the Home controls returns to the selected app', same(await call('where'), before));
+    await group('layout'); await current.evaluate(() => window.CleanFrameBack());
+    check('The remote Back key from the shell closes one layer', (await state()).view === 'settings' && (await state()).focusAction === 'settings.group.layout');
+    await act('settings.editor'); await current.evaluate(() => window.CleanFrameHome());
+    check('The Home button closes every panel and returns to the selected app', (await call('where')).view === 'home' && (await state()).focusAction === before.focusAction && (await call('where')).focusCount === 1);
+  });
+  await run('Hold OK to close an app', async () => {
+    await page();
+    check('Home starts on the remembered app', (await state()).focusAction === 'home.app.netflix');
+    await current.keyboard.down('Enter'); await current.waitForTimeout(150);
+    check('OK going down on an app does not act yet', (await calls()).length === 0);
+    await current.keyboard.up('Enter');
+    check('A short OK opens the app when released', same(await calls(), [['launch', PACKAGE.netflix]]), await calls());
+    await current.keyboard.down('Enter'); await current.waitForTimeout(450); await current.keyboard.up('Enter');
+    check('Releasing OK before 650 ms still opens the app', same(await calls(), [['launch', PACKAGE.netflix], ['launch', PACKAGE.netflix]]), await calls());
+    await current.keyboard.down('Enter'); await current.keyboard.down('Enter'); await current.waitForTimeout(400);
+    check('No close before 650 ms', (await calls()).length === 2);
+    await current.waitForFunction(() => __tv.calls.length === 3, null, { timeout: 2000 });
+    check('Holding OK closes the app through the bridge', same(await lastCall(), ['closeApp', PACKAGE.netflix]));
+    await current.waitForTimeout(400);
+    check('A held key repeat closes only once', (await calls()).length === 3);
+    let status = await focusStatus();
+    check('Closing flashes "Closed Netflix." under the app', status.on && status.text === 'Closed Netflix.', status);
+    await current.keyboard.up('Enter');
+    check('Releasing after a close does not open the app', (await calls()).length === 3 && (await state()).view === 'home');
+    await nav('right');
+    status = await focusStatus();
+    check('The close note goes when focus moves', !status.on || status.text !== 'Closed Netflix.', status);
+    await nav('left');
+    status = await focusStatus();
+    check('The close note does not come back when focus returns', !status.on || status.text !== 'Closed Netflix.', status);
+    await current.keyboard.down('Enter'); await current.waitForTimeout(200); await current.keyboard.press('ArrowRight'); await current.waitForTimeout(700); await current.keyboard.up('Enter');
+    check('Another key during a hold cancels it', (await calls()).length === 3 && (await state()).focusAction === 'home.app.jellyfin', { calls: await calls(), focus: (await state()).focusAction });
+    await look({ layout: 'list' }); await scene('home');
+    await current.keyboard.down('Enter'); await current.waitForFunction(() => __tv.calls.length === 4, null, { timeout: 2000 }); await current.keyboard.up('Enter');
+    status = await focusStatus();
+    check('List Home closes the focused app too', same(await lastCall(), ['closeApp', PACKAGE.jellyfin]) && status.on && status.text === 'Closed Jellyfin.', status);
+    await look({ layout: 'dock' }); await library(); await nav('right', 'right');
+    await current.keyboard.down('Enter'); await current.waitForFunction(() => __tv.calls.length === 5, null, { timeout: 2000 }); await current.keyboard.up('Enter');
+    status = await focusStatus();
+    check('All apps closes the focused app', same(await lastCall(), ['closeApp', KODI]) && status.on && status.text === 'Closed Kodi.' && (await call('where')).view === 'apps', status);
+    await nav('down', 'left', 'left');
+    check('All apps focus reaches an input', (await state()).focusAction === 'apps.open.' + PC, (await state()).focusAction);
+    await current.keyboard.down('Enter'); await current.waitForFunction(() => __tv.calls.length === 6, null, { timeout: 2000 }); await current.keyboard.up('Enter');
+    status = await focusStatus();
+    check('Holding OK on an input shows the bridge refusal', same(await lastCall(), ['closeApp', PC]) && status.on && status.text === 'Inputs can’t be closed.', status);
+    await current.keyboard.press('Enter');
+    check('A short OK opens the input', same(await lastCall(), ['launch', PC]));
+    await scene('home'); await nav('up', 'right', 'right');
+    check('Remote focus reaches the Settings control', (await state()).focusAction === 'util.settings');
+    const count = (await calls()).length;
+    await current.keyboard.down('Enter');
+    check('Other controls act when OK goes down', (await call('where')).view === 'settings');
+    await current.waitForTimeout(800); await current.keyboard.up('Enter');
+    check('Holding OK on a control closes nothing', (await calls()).length === count && (await call('where')).view === 'settings');
+  });
+  await run('ADB configuration at start', async () => {
+    const config = { home: ['netflix', PC, 'primevideo'], layout: 'list', clock: '12', source: 'bing', wall: BING[1].id, mode: '15' };
+    await page({ seed: undefined, config: JSON.stringify(config) });
+    let s = await state();
+    check('Configuration sets Home order and selects its first app', same(s.dock, config.home) && s.selected === 'netflix' && s.focusAction === 'home.app.netflix', s);
+    check('Configuration sets layout, clock, photo source, photo and rotation', s.look.layout === 'list' && s.look.clock === '12' && s.look.source === 'bing' && s.wallpaper === BING[1].id && s.shown.wall === BING[1].id && s.mode === '15', s);
+    check('Configuration is stored at once', same((await stored()).dock, config.home) && (await stored()).look.source === 'bing');
+    check('Configuration is taken from the bridge once', (await current.evaluate(() => __tv.reads.config)) === 1);
+    await look({ layout: 'dock' }); await current.reload(); await ready();
+    s = await state();
+    check('A consumed configuration is not applied again', s.look.layout === 'dock' && same(s.dock, config.home), s.look);
+    await closePage();
+    await page({ seed: baseline({ look: { controls: 'text', bg: 'photo', clock: '24' } }), config: JSON.stringify({ clock: '12', home: [PC, 'youtube'] }) });
+    s = await state();
+    check('Configuration changes only the settings it names', s.look.clock === '12' && s.look.controls === 'text' && same(s.dock, [PC, 'youtube']) && s.wallpaper === walls[0].id, s);
+    await closePage();
+    await page({ config: '{oops' });
+    s = await state();
+    check('A malformed configuration is ignored', same(s.dock, HOME) && s.look.layout === 'dock' && s.look.clock === '24', s);
+  });
+  await run('Clock format follows the TV and the Layout setting', async () => {
+    const time = { timezoneId: 'UTC', systemTime: '2026-10-20T15:07:10Z' };
+    await page(time);
+    check('24-hour TV default shows 15:07', (await state()).look.clock === '24' && (await clockText()) === '15:07', await clockText());
+    await group('layout'); await choice('clock', '12'); await ready();
+    check('12-hour choice shows 3:07 without AM/PM', (await clockText()) === '3:07' && (await stored()).look.clock === '12', await clockText());
+    check('Clock choice marks only 12-hour', same((await radios()).filter(r => r.action.startsWith('choice.clock.') && r.checked === 'true').map(r => r.action), ['choice.clock.12']));
+    await current.reload(); await ready();
+    check('Clock format survives reload', (await state()).look.clock === '12' && (await clockText()) === '3:07');
+    await closePage();
+    await page({ ...time, is24: false });
+    check('12-hour TV default is used when no clock is saved', (await state()).look.clock === '12' && (await clockText()) === '3:07', await clockText());
+    await closePage();
+    await page({ ...time, is24: false, seed: baseline({ look: { clock: '24' } }) });
+    check('A saved clock format wins over the TV default', (await state()).look.clock === '24' && (await clockText()) === '15:07');
+    await closePage();
+    await page({ timezoneId: 'UTC', systemTime: '2026-10-20T00:05:10Z', is24: false });
+    check('12-hour midnight shows 12:05', (await clockText()) === '12:05', await clockText());
+    await look({ clock: '24' });
+    check('24-hour midnight shows 0:05', (await clockText()) === '0:05', await clockText());
+    await look({ layout: 'list' });
+    check('List layout shows the same clock', (await clockText()) === '0:05');
+  });
   await run('Physical-key repeats and Back hierarchy', async () => {
     await page(); await editor(); await remove('netflix');
     await current.keyboard.down('Enter'); await current.keyboard.down('Enter');
@@ -836,7 +1119,7 @@ try {
     const focus = (await state()).focusAction; await current.keyboard.press('ArrowDown');
     check('Warm return restores remote focus', (await state()).focusAction !== focus && (await call('where')).focusCount === 1);
     const clock = await current.locator('#caption .clock').textContent();
-    check('Live 12-hour clock has no AM/PM', /^\s*\d{1,2}:\d{2}\s*$/.test(clock), clock);
+    check('Live clock has no AM/PM or seconds', /^\s*\d{1,2}:\d{2}\s*$/.test(clock), clock);
   });
   await run('Open rotation and browser fallback', async () => {
     await page({ seed: baseline({ mode: 'open' }) }); check('Open mode advances at cold start', (await state()).wallpaper === walls[1].id);
@@ -846,9 +1129,16 @@ try {
     await current.reload(); await ready(); check('Next cold start advances again', (await state()).wallpaper === walls[2].id);
     await closePage();
     await page({ mock: false }); await act('home.app.netflix'); await current.waitForFunction(() => ShoreQA.where().view === 'message');
-    check('Browser launch honestly requires TV', /TV/.test(await current.locator('#stage').innerText()));
+    check('Browser launch honestly requires TV', /needs the TV/.test(await current.locator('#stage').innerText()));
     await nav('back'); await library();
-    check('Browser All Apps has no installed fixtures', /TV/.test(await current.locator('#stage').innerText()) && !(await current.locator('[data-action^="apps.open."]').count()));
+    const names = await libraryNames();
+    check('Browser All apps shows the fixed preview catalogue', names.includes('RaiPlay') && names.includes('PC') && !names.includes(UNSAFE_NAME), names);
+    await nav('right');
+    await current.keyboard.down('Enter'); await current.waitForTimeout(800); await current.keyboard.up('Enter');
+    const status = await focusStatus();
+    check('Browser hold-to-close honestly requires TV', status.on && /needs the TV/.test(status.text) && (await call('where')).view === 'apps', status);
+    await group('android'); await act('android.settings'); await current.waitForFunction(() => ShoreQA.where().view === 'message');
+    check('Browser TV settings honestly requires TV', /needs the TV/.test(await current.locator('#stage').innerText()));
   });
   section = 'Run integrity';
   report.sourceAfter = hashes();

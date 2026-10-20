@@ -77,7 +77,7 @@ The [install guide](docs/install.md#configure-from-a-computer) lists every key a
 
 ## Network and privacy
 
-CleanFrame TV uses the network for one thing: when **Background → Photo source** is set to **Bing photo of the day**, it downloads the latest photos from `www.bing.com` (at most every 12 hours, at 1920×1080, keeping the last eight on the TV). With the built-in wallpapers, which are the default, it makes no network requests. There are no accounts, analytics or ads. Bing photos are fetched for wallpaper use on your TV and are not redistributed with the app.
+CleanFrame TV uses the network for one thing: when **Background → Photo source** is set to **Bing** (photo of the day), it downloads the latest photos from `www.bing.com` (at most every 12 hours, at 1920×1080, keeping the last eight on the TV). With the built-in wallpapers, which are the default, it makes no network requests. There are no accounts, analytics or ads. Bing photos are fetched for wallpaper use on your TV and are not redistributed with the app.
 
 The optional remote-button service is an Android accessibility service. Android lets such a service see key presses so it can catch the buttons you assign. It acts only on those, passes every other key through, stores nothing and cannot read the screen. It stays off unless you enable it.
 
