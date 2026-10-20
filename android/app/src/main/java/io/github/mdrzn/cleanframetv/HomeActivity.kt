@@ -6,6 +6,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.ApplicationInfo
 import android.graphics.Color
 import android.net.Uri
 import android.os.Build
@@ -43,6 +44,7 @@ class HomeActivity : Activity() {
         photos = Photos(this)
         feed = BingFeed(this, photos) { event("cleanframe:photos-updated") }
         bridge = Bridge(this, catalog, photos, feed)
+        takeDebug(intent)
         takeConfig(intent)
         createWebView()
         registerReceiver(packages, IntentFilter().apply {
@@ -70,6 +72,10 @@ class HomeActivity : Activity() {
             allowFileAccess = false
             allowContentAccess = false
             textZoom = 100
+            // index.html asks for a 1920px-wide viewport; overview mode fits it to the screen, so the
+            // 1920x1080 stage lays out 1:1 whatever the TV's density (320dpi TVs report 960x540 otherwise).
+            useWideViewPort = true
+            loadWithOverviewMode = true
             mediaPlaybackRequiresUserGesture = true
             setSupportZoom(false)
         }
@@ -81,7 +87,12 @@ class HomeActivity : Activity() {
             // The launcher never navigates away from its own bundled pages.
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean = request.url.host != HOST
 
-            override fun onPageFinished(view: WebView, url: String) { pageReady = true }
+            override fun onPageFinished(view: WebView, url: String) {
+                pageReady = true
+                view.evaluateJavascript("innerWidth + 'x' + innerHeight + ' @' + devicePixelRatio") {
+                    Log.i(AndroidCatalog.TAG, "Viewport $it")
+                }
+            }
 
             override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
                 Log.w(AndroidCatalog.TAG, "WebView renderer gone (crash=${detail.didCrash()}); recreating")
@@ -106,6 +117,7 @@ class HomeActivity : Activity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        takeDebug(intent)
         takeConfig(intent)
         // Home pressed while already home: close panels and Photo mode.
         if (intent.hasCategory(Intent.CATEGORY_HOME)) js("window.CleanFrameHome && window.CleanFrameHome()")
@@ -142,6 +154,14 @@ class HomeActivity : Activity() {
         feed.close()
         web?.destroy()
         super.onDestroy()
+    }
+
+    /** `--ez debug true|false` turns chrome://inspect access on or off (always on for debug builds). */
+    private fun takeDebug(intent: Intent?) {
+        val prefs = getSharedPreferences("cleanframe", MODE_PRIVATE)
+        if (intent?.hasExtra("debug") == true) prefs.edit().putBoolean("debug", intent.getBooleanExtra("debug", false)).apply()
+        val debuggable = applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
+        WebView.setWebContentsDebuggingEnabled(debuggable || prefs.getBoolean("debug", false))
     }
 
     /** `adb shell am start -n <pkg>/.HomeActivity --es config '<json>'` — see README. */
