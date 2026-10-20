@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">CleanFrame TV</string>
+    <string name="key_service_label">CleanFrame TV remote buttons</string>
+    <string name="key_service_description">Opens the app you assigned when you press a remote button such as the Netflix or Mi key. It only acts on the buttons you assign; every other key press passes through unchanged and nothing is stored or sent anywhere.</string>
 </resources>

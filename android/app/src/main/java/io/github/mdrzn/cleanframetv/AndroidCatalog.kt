@@ -2,6 +2,7 @@ package io.github.mdrzn.cleanframetv
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -33,7 +34,8 @@ class AndroidCatalog(private val context: Context) {
             val intent = Intent(Intent.ACTION_MAIN).addCategory(category)
             for (info in pm.queryIntentActivities(intent, 0)) {
                 val label = info.loadLabel(pm)?.toString() ?: info.activityInfo.packageName
-                out += AppCandidate(info.activityInfo.packageName, label, leanback)
+                val system = info.activityInfo.applicationInfo.flags and ApplicationInfo.FLAG_SYSTEM != 0
+                out += AppCandidate(info.activityInfo.packageName, label, leanback, system)
             }
         }
         return out
@@ -59,6 +61,11 @@ class AndroidCatalog(private val context: Context) {
         names.forEach { (id, name) -> if (name.isBlank()) editor.remove(NAME_PREFIX + id) else editor.putString(NAME_PREFIX + id, name.trim()) }
         editor.apply()
     }
+
+    /** Remote buttons sent to an app or input by [KeyRemapService]: keycode → app or input id. */
+    fun buttons(): Map<Int, String> = Catalog.parseButtons(prefs.getString(BUTTONS, null).orEmpty())
+
+    fun saveButtons(buttons: Map<Int, String>) = prefs.edit().putString(BUTTONS, Catalog.buttonsJson(buttons)).apply()
 
     /** Returns "" on success or a short message for the interface. */
     fun launch(appId: String): String {
@@ -117,6 +124,7 @@ class AndroidCatalog(private val context: Context) {
     companion object {
         const val TAG = "CleanFrameTV"
         private const val NAME_PREFIX = "inputName."
+        const val BUTTONS = "buttons"
         private const val PROJECTIVY = "com.spocky.projengmenu"
         /** HOME handlers that are not user launchers (setup fallbacks, factory tools). */
         private val NOT_LAUNCHERS = setOf("com.android.tv.settings", "com.android.settings", "com.duokan.factorytest", "com.google.android.tungsten.setupwraith")

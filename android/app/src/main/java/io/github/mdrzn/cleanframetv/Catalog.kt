@@ -6,7 +6,7 @@ import org.json.JSONObject
 data class CatalogEntry(val appId: String, val name: String, val kind: String, val icon: String)
 
 /** A launchable activity found by PackageManager. */
-data class AppCandidate(val packageName: String, val label: String, val leanback: Boolean)
+data class AppCandidate(val packageName: String, val label: String, val leanback: Boolean, val system: Boolean = false)
 
 /** A TV input found by TvInputManager. */
 data class InputCandidate(val inputId: String, val type: Int, val label: String, val parentId: String?)
@@ -14,12 +14,18 @@ data class InputCandidate(val inputId: String, val type: Int, val label: String,
 /** An HDMI input as shown to the web interface, plus the real input id used to switch to it. */
 data class InputEntry(val entry: CatalogEntry, val inputId: String)
 
+/** An ADB configuration split into what the web interface stores and what the Android side keeps. */
+data class Config(val web: String, val inputNames: Map<String, String>, val buttons: Map<Int, String>?)
+
 /** Pure catalogue rules, kept free of Android types so they run as JVM unit tests. */
 object Catalog {
     /** android.media.tv.TvInputInfo.TYPE_HDMI */
     const val TYPE_HDMI = 1007
 
-    /** One entry per package (the TV/leanback activity wins), without this launcher, sorted by name. */
+    /**
+     * One entry per package (the TV/leanback activity wins), without this launcher, sorted by name.
+     * System apps with only a phone-style entry (vendor services, the desk clock) are left out.
+     */
     fun apps(candidates: List<AppCandidate>, selfPackage: String): List<CatalogEntry> {
         val best = LinkedHashMap<String, AppCandidate>()
         for (candidate in candidates) {
@@ -28,6 +34,7 @@ object Catalog {
             if (previous == null || (candidate.leanback && !previous.leanback)) best[candidate.packageName] = candidate
         }
         return best.values
+            .filter { it.leanback || !it.system }
             .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.label })
             .map { CatalogEntry(it.packageName, it.label.trim().ifEmpty { it.packageName }, "app", "/icons/${it.packageName}.png") }
     }
@@ -71,14 +78,33 @@ object Catalog {
     }
 
     /**
-     * Splits an ADB configuration (`--es config '<json>'`) into the part handed to the web interface
-     * and the HDMI input names the shell stores itself.
+     * Splits an ADB configuration (`--es config '<json>'`) into the part handed to the web interface,
+     * the HDMI input names and the remote button targets (null when the config doesn't mention buttons).
      */
-    fun splitConfig(json: String): Pair<String, Map<String, String>> {
+    fun splitConfig(json: String): Config {
         val obj = JSONObject(json)
         val names = LinkedHashMap<String, String>()
         obj.optJSONObject("inputNames")?.let { map -> map.keys().forEach { key -> names[key] = map.optString(key) } }
+        val buttons = obj.optJSONObject("buttons")?.let { buttonsOf(it) }
         obj.remove("inputNames")
-        return obj.toString() to names
+        obj.remove("buttons")
+        return Config(obj.toString(), names, buttons)
     }
+
+    /** Keycode → app or input id; keys must be Android keycodes as numbers, empty targets are dropped. */
+    private fun buttonsOf(map: JSONObject): Map<Int, String> {
+        val out = LinkedHashMap<Int, String>()
+        map.keys().forEach { key ->
+            val code = key.toIntOrNull()
+            val target = map.optString(key).trim()
+            if (code != null && code > 0 && target.isNotEmpty()) out[code] = target
+        }
+        return out
+    }
+
+    fun buttonsJson(buttons: Map<Int, String>): String =
+        buttons.entries.joinToString(",", "{", "}") { "${quote(it.key.toString())}:${quote(it.value)}" }
+
+    fun parseButtons(json: String): Map<Int, String> =
+        try { buttonsOf(JSONObject(json)) } catch (e: Exception) { emptyMap() }
 }

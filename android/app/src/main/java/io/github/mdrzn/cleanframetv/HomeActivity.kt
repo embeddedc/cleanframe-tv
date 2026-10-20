@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ApplicationInfo
+import android.content.pm.PackageManager
 import android.graphics.Color
 import android.net.Uri
 import android.os.Build
@@ -33,6 +34,7 @@ class HomeActivity : Activity() {
     private lateinit var bridge: Bridge
     private var web: WebView? = null
     private var pageReady = false
+    private var forwarded = false
 
     private val packages = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) = event("cleanframe:apps-changed")
@@ -40,6 +42,15 @@ class HomeActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Started as an ordinary app (adb `am start -n`, an app list) while CleanFrame is the home screen:
+        // Android would keep this copy beside the real home one, so hand the intent over and close.
+        if (!intent.hasCategory(Intent.CATEGORY_HOME) && isDefaultHome()) {
+            startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).setPackage(packageName)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK).apply { intent.extras?.let { putExtras(it) } })
+            forwarded = true
+            finish()
+            return
+        }
         catalog = AndroidCatalog(this)
         photos = Photos(this)
         feed = BingFeed(this, photos) { event("cleanframe:photos-updated") }
@@ -125,12 +136,14 @@ class HomeActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        if (forwarded) return
         web?.onResume()
         web?.requestFocus()
         feed.refresh(force = false)
     }
 
     override fun onPause() {
+        if (forwarded) { super.onPause(); return }
         web?.onPause()
         super.onPause()
     }
@@ -150,10 +163,16 @@ class HomeActivity : Activity() {
     }
 
     override fun onDestroy() {
+        if (forwarded) { super.onDestroy(); return }
         unregisterReceiver(packages)
         feed.close()
         web?.destroy()
         super.onDestroy()
+    }
+
+    private fun isDefaultHome(): Boolean {
+        val home = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+        return packageManager.resolveActivity(home, PackageManager.MATCH_DEFAULT_ONLY)?.activityInfo?.packageName == packageName
     }
 
     /** `--ez debug true|false` turns chrome://inspect access on or off (always on for debug builds). */
@@ -168,10 +187,13 @@ class HomeActivity : Activity() {
     private fun takeConfig(intent: Intent?) {
         val json = intent?.getStringExtra("config") ?: return
         try {
-            val (webConfig, names) = Catalog.splitConfig(json)
-            if (names.isNotEmpty()) catalog.saveInputNames(names)
-            bridge.pendingConfig = webConfig
-            Log.i(AndroidCatalog.TAG, "Configuration received (${names.size} input names)")
+            val config = Catalog.splitConfig(json)
+            if (config.inputNames.isNotEmpty()) catalog.saveInputNames(config.inputNames)
+            config.buttons?.let { catalog.saveButtons(it) }
+            Log.i(AndroidCatalog.TAG, "Configuration received (${config.inputNames.size} input names, ${config.buttons?.size ?: "unchanged"} buttons)")
+            // Input names show up on the next catalogue refresh; interface settings need a reload.
+            if (config.web == "{}" && config.inputNames.isEmpty()) return
+            bridge.pendingConfig = config.web
             if (pageReady) web?.reload()
         } catch (e: Exception) {
             Log.w(AndroidCatalog.TAG, "Ignoring malformed config", e)

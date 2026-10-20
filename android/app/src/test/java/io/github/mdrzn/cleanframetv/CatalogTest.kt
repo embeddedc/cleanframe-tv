@@ -2,6 +2,7 @@ package io.github.mdrzn.cleanframetv
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -54,9 +55,33 @@ class CatalogTest {
     }
 
     @Test fun configSplitsInputNamesFromWebPreferences() {
-        val (web, names) = Catalog.splitConfig("""{"home":["primevideo","input.hw5"],"inputNames":{"input.hw5":"Nintendo Switch","input.hw6":"PC"},"clock":"24"}""")
-        assertEquals(mapOf("input.hw5" to "Nintendo Switch", "input.hw6" to "PC"), names)
-        assertFalse(web.contains("inputNames"))
-        assertTrue(web.contains("\"clock\":\"24\""))
+        val config = Catalog.splitConfig("""{"home":["primevideo","input.hw5"],"inputNames":{"input.hw5":"Nintendo Switch","input.hw6":"PC"},"clock":"24"}""")
+        assertEquals(mapOf("input.hw5" to "Nintendo Switch", "input.hw6" to "PC"), config.inputNames)
+        assertFalse(config.web.contains("inputNames"))
+        assertTrue(config.web.contains("\"clock\":\"24\""))
+        assertNull(config.buttons)
+    }
+
+    @Test fun configSplitsButtonsKeepingOnlyNumericKeycodes() {
+        val config = Catalog.splitConfig("""{"buttons":{"192":"org.smarttube.stable","193":"org.jellyfin.androidtv","KEYCODE_BUTTON_7":"x","194":""},"clock":"24"}""")
+        assertEquals(mapOf(192 to "org.smarttube.stable", 193 to "org.jellyfin.androidtv"), config.buttons)
+        assertFalse(config.web.contains("buttons"))
+        assertEquals(mapOf<Int, String>(), Catalog.splitConfig("""{"buttons":{}}""").buttons)
+    }
+
+    @Test fun buttonsRoundTripThroughStoredJson() {
+        val buttons = mapOf(192 to "org.smarttube.stable", 193 to "input.hw5")
+        assertEquals(buttons, Catalog.parseButtons(Catalog.buttonsJson(buttons)))
+        assertEquals(mapOf<Int, String>(), Catalog.parseButtons(""))
+        assertEquals(mapOf<Int, String>(), Catalog.parseButtons("not json"))
+    }
+
+    @Test fun systemAppsWithoutATvEntryAreHidden() {
+        val apps = Catalog.apps(listOf(
+            AppCandidate("com.android.deskclock", "Clock", leanback = false, system = true),
+            AppCandidate("com.xiaomi.mitv.mediaexplorer", "Media Player", leanback = true, system = true),
+            AppCandidate("com.example.sideloaded", "Sideloaded", leanback = false, system = false),
+        ), "self")
+        assertEquals(listOf("com.xiaomi.mitv.mediaexplorer", "com.example.sideloaded"), apps.map { it.appId })
     }
 }
