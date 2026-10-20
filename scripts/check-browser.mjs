@@ -81,7 +81,8 @@ function installHarness({ seed, legacy, mock, catalog, photos, config, is24, min
   if (noFontAPI) Object.defineProperty(document, 'fonts', { configurable: true, value: undefined });
   if (!mock) return;
   // Synchronous like the real @JavascriptInterface methods. Actions are recorded in calls; reads are counted.
-  const tv = window.__tv = { catalog, photos, is24, catalogFailure: false, launchFailure: false, calls: [], reads: { apps: 0, photos: 0, config: 0, is24: 0 } };
+  // __cleanframe_catalog_down survives reloads, to fail the catalogue from the very first read.
+  const tv = window.__tv = { catalog, photos, is24, catalogFailure: !!sessionStorage.getItem('__cleanframe_catalog_down'), launchFailure: false, calls: [], reads: { apps: 0, photos: 0, config: 0, is24: 0 } };
   window.CleanFrameAndroid = {
     // A Java exception in a bridge method reaches the page as a thrown Error.
     appsJson() { tv.reads.apps++; if (tv.catalogFailure) throw new Error('Java exception was raised during method invocation'); return JSON.stringify(tv.catalog); },
@@ -342,6 +343,18 @@ try {
     await current.evaluate(() => { __tv.catalogFailure = false; }); await act('apps.retry');
     await current.waitForSelector('[data-action="apps.open.' + EXTRA + '"]');
     check('Retry displays real installed names', (await current.locator('[data-action^="apps.open."]').count()) === CATALOG.length);
+  });
+  await run('Catalogue failure at startup', async () => {
+    await page();
+    const before = (await state()).dock;
+    await current.evaluate(() => sessionStorage.setItem('__cleanframe_catalog_down', '1'));
+    await current.reload(); await ready();
+    check('The bridge failed from the first catalogue read', await current.evaluate(() => __tv.catalogFailure && __tv.reads.apps > 0));
+    check('Home starts from the last catalogue that loaded', same((await state()).dock, before) && (await call('where')).focusCount === 1, { before, after: (await state()).dock });
+    await act('home.app.netflix');
+    check('A cached Home app still opens', same(await lastCall(), ['launch', PACKAGE.netflix]), await lastCall());
+    await library();
+    check('All apps reports the failure with a retry', (await call('actions')).includes('apps.retry'));
   });
   await run('Native icon and failed-image fallback', async () => {
     await page({ catalog: CATALOG.map(a => a.appId === EXTRA ? { ...a, icon: '/icons/' + EXTRA + '.png' } : a) });

@@ -39,9 +39,24 @@
     if (typeof text !== 'string' || !text) return fallback;
     try { return JSON.parse(text); } catch (e) { return fallback; }
   }
+  var CATALOG_CACHE = 'cleanframe.catalog.v1';
+  function valid(list) {
+    return Array.isArray(list) ? list.filter(function (a) { return a && typeof a.appId === 'string' && typeof a.name === 'string'; }) : null;
+  }
+  /* The installed apps and inputs. Throws when the bridge fails; a good answer is kept for cachedInstalled(). */
   function installed() {
-    var b = bridge(), list = b ? parse(b.appsJson(), []) : MOCK_APPS;
-    return Array.isArray(list) ? list.filter(function (a) { return a && typeof a.appId === 'string' && typeof a.name === 'string'; }) : [];
+    var b = bridge(), list;
+    if (!b) return valid(MOCK_APPS);
+    list = valid(parse(b.appsJson(), null));
+    if (!list) throw new Error('Unreadable app catalogue');
+    try { window.localStorage.setItem(CATALOG_CACHE, JSON.stringify(list)); } catch (e) {}
+    return list;
+  }
+  /* Startup must not fail: fall back to the last catalogue that loaded, so Home keeps its apps. */
+  function cachedInstalled() {
+    try { return installed(); } catch (e) {
+      try { return valid(parse(window.localStorage.getItem(CATALOG_CACHE), null)) || []; } catch (e2) { return []; }
+    }
   }
   /* brandId -> chosen appId, choosing the first listed package (or input name match) that is installed. */
   function brandChoices(list) {
@@ -65,7 +80,7 @@
   }
 
   function primaryApps() {
-    var list = installed(), chosen = brandChoices(list), out;
+    var list = cachedInstalled(), chosen = brandChoices(list), out;
     out = BRANDS.filter(function (brand) { return chosen[brand.id]; }).map(function (brand) {
       return { id: brand.id, name: brand.name, mark: true, appId: chosen[brand.id] };
     });
@@ -98,7 +113,7 @@
     try { result(b.closeApp(String(id)), done); } catch (e) { result('The TV did not respond. Please try again.', done); }
   }
   function launch(brand, done) {
-    var chosen = brandChoices(installed());
+    var chosen = brandChoices(cachedInstalled());
     if (!chosen[brand]) { result('This app is not installed.', done); return; }
     launchApp(chosen[brand], done);
   }

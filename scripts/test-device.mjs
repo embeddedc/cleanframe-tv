@@ -7,8 +7,14 @@ import assert from 'node:assert/strict';
 const plain = (x) => JSON.parse(JSON.stringify(x));
 const source = fs.readFileSync(new URL('../app/device.js', import.meta.url), 'utf8');
 
-function load(bridge) {
+function memoryStorage() {
+  const data = {};
+  return { getItem: (k) => (k in data ? data[k] : null), setItem: (k, v) => { data[k] = String(v); }, removeItem: (k) => { delete data[k]; } };
+}
+
+function load(bridge, localStorage) {
   const window = { location: { hostname: 'appassets.androidplatform.net' } };
+  if (localStorage) window.localStorage = localStorage;
   if (bridge) window.CleanFrameAndroid = bridge;
   vm.runInNewContext(source, { window, JSON, Object, Array, String, RegExp, setTimeout, clearTimeout });
   return window.FrameDevice;
@@ -105,6 +111,18 @@ dev = load(sourceBridge);
 assert.deepEqual(plain(sourceBridge.calls), [['source', 'builtin'], ['source', 'bing'], ['source', 'builtin']]);
 dev = load(fakeBridge(installed, { setPhotoSource: undefined }));
 dev.photoSource('bing');
+
+// A bridge failure at startup falls back to the last catalogue that loaded, so Home keeps its brands.
+const storage = memoryStorage();
+load(fakeBridge(installed), storage).primaryApps();
+let failing = load(fakeBridge(installed, { appsJson: () => { throw new Error('Java exception'); } }), storage);
+assert.deepEqual(plain(failing.primaryApps().map((a) => a.id)), ['primevideo', 'youtube', 'nintendoswitch']);
+failing.apps((err) => { result = err; });
+assert.match(result.message, /Could not read installed apps/);
+failing = load(fakeBridge(installed, { appsJson: () => { throw new Error('Java exception'); } }), memoryStorage());
+assert.deepEqual(plain(failing.primaryApps()), []);
+failing = load(fakeBridge(installed, { appsJson: () => '{not json' }), storage);
+assert.equal(failing.primaryApps().length, 3);
 
 console.log('device.js adapter checks passed.');
 
