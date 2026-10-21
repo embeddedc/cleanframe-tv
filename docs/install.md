@@ -27,7 +27,7 @@ Download `CleanFrameTV-<version>.apk` from [Releases](https://github.com/mdrzn/c
 ## Install and make it Home
 
 ```sh
-adb install CleanFrameTV-0.1.0.apk
+adb install CleanFrameTV-0.2.0.apk
 adb shell cmd package set-home-activity io.github.mdrzn.cleanframetv/.HomeActivity
 adb shell input keyevent KEYCODE_HOME
 ```

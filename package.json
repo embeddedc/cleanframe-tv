@@ -1,6 +1,6 @@
 {
   "name": "cleanframe-tv",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "A quiet home screen (launcher) for Android TV, ported from CleanFrame.",
   "scripts": {

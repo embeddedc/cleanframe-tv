@@ -39,7 +39,7 @@ Download the APK from [Releases](https://github.com/mdrzn/cleanframe-tv/releases
 
 ```sh
 adb connect <tv-address>:5555
-adb install CleanFrameTV-0.1.0.apk
+adb install CleanFrameTV-0.2.0.apk
 adb shell cmd package set-home-activity io.github.mdrzn.cleanframetv/.HomeActivity
 adb shell input keyevent KEYCODE_HOME
 ```
