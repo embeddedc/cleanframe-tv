@@ -84,7 +84,7 @@ Some remotes have buttons that the TV maker handles before any app sees them. On
 2. The first time, choose **Turn on remote buttons**: Android's Accessibility settings open. Turn on **CleanFrame TV remote buttons** (Android only lets you do this yourself), then press Back.
 3. Choose **Add a button**, press the remote button you want to use, and pick the app or input it should open.
 
-Choose an assigned button to change what it opens or to remove it. Arrows, OK, Back, Home, volume and power can't be assigned. Buttons are named after Android's key names, so a vendor key may appear as, for example, "Button 5".
+Choose an assigned button to change what it opens or to remove it. Arrows, OK, Back, Home, volume and power can't be assigned. Buttons are named after Android's key names, so a vendor key may appear as, for example, "Button 5" (see the screenshot in the [README](../README.md#remote-buttons)).
 
 ### From a computer
 

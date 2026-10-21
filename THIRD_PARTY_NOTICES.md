@@ -28,7 +28,9 @@ The fifteen bundled photo pages were individually checked on 20 October 2026. Ea
 
 Photographers retain their rights. Wallpapers, thumbnails, panel backgrounds and material fields derive from the credited photographs and retain their terms. The Unsplash licence permits copying, modification and distribution subject to its restrictions, including on selling unmodified images and building a competing image service.
 
-**Bing photo of the day** images are not part of this repository or the APK. When a user selects that source, each TV downloads them from Microsoft's Bing service for use as its own wallpaper and shows each photo's copyright caption in Photo mode. Their rights stay with the photographers and agencies named in those captions.
+**Bing photo of the day** images are not part of the APK. When a user selects that source, each TV downloads them from Microsoft's Bing service for use as its own wallpaper and shows each photo's copyright caption in Photo mode. Their rights stay with the photographers and agencies named in those captions.
+
+The screenshot `docs/images/cleanframe-tv-remote-buttons.jpg` was taken on the reference TV and shows, blurred and in the preview, a Bing photo of the day: *View of the Wroclaw Market Square from the Witches' Bridge in Wroclaw, Poland* (© Piotr Mitelski/Shutterstock). It is included only to illustrate the feature; the photographer retains all rights.
 
 ## Android libraries
 

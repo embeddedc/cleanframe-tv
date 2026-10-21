@@ -63,6 +63,20 @@ CleanFrame TV should now appear whenever you press Home. The [install guide](doc
 
 Everything can be changed with the remote in **Settings**: background and photo source, layout, clock, typography, focus style, Apps on Home, and the Android TV group (TV settings, remote buttons, previous launcher).
 
+### Remote buttons
+
+Many remotes have buttons that only ever open the TV maker's choice: on Xiaomi TVs the Mi button opens Live TV and the Netflix button opens Netflix. CleanFrame TV can give them a new job, all from the remote:
+
+1. **Settings → Android TV → Remote buttons**. The first time, choose **Turn on remote buttons** and switch on *CleanFrame TV remote buttons* in Android's Accessibility settings (Android only lets you do this yourself).
+2. **Add a button**, press the button on the remote, then pick the app or HDMI input it should open.
+3. Choose an assigned button to change it or remove it.
+
+![Remote buttons on a Xiaomi Mi TV: the Mi button (Button 5) opens YouTube and the Netflix button (Button 6) opens Jellyfin](docs/images/cleanframe-tv-remote-buttons.jpg)
+
+Arrows, OK, Back, Home, volume and power keep their jobs and can't be assigned. Buttons show Android's key names, so a vendor key may appear as "Button 5".
+
+### From a computer
+
 The same preferences can be set from a computer, which is the easiest way to name HDMI inputs:
 
 ```sh
