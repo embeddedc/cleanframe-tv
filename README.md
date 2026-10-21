@@ -16,7 +16,7 @@ CleanFrame TV is an Android TV port of [CleanFrame](https://github.com/nthnclrk/
 - **HDMI inputs as apps:** each HDMI port can sit on Home like an app (for example "Nintendo Switch" or "PC") and opens that input directly.
 - **All apps** lists installed TV apps and inputs. Choose up to nine for Home and arrange them with the remote.
 - **Hold OK on an app to close it** and free its memory. A short press opens it.
-- **Remote buttons (optional):** send vendor buttons that apps normally can't use, such as Xiaomi's Mi or Netflix key, to an app of your choice.
+- **Remote buttons (optional):** in Settings → Android TV → Remote buttons, press a vendor button that apps normally can't use (such as Xiaomi's Mi or Netflix key) and choose the app or input it opens.
 - **24- or 12-hour clock**, defaulting to the TV's setting.
 - Back on Home does nothing, so you can't fall out of the launcher by accident.
 
@@ -61,7 +61,7 @@ CleanFrame TV should now appear whenever you press Home. The [install guide](doc
 
 ## Configure
 
-Everything can be changed with the remote in **Settings**: background and photo source, layout, clock, typography, focus style, Apps on Home, and the Android TV group (TV settings, previous launcher).
+Everything can be changed with the remote in **Settings**: background and photo source, layout, clock, typography, focus style, Apps on Home, and the Android TV group (TV settings, remote buttons, previous launcher).
 
 The same preferences can be set from a computer, which is the easiest way to name HDMI inputs:
 

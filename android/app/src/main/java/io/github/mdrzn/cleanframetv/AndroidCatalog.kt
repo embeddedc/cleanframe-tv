@@ -105,6 +105,8 @@ class AndroidCatalog(private val context: Context) {
 
     fun openSettings(): String = start(Intent(Settings.ACTION_SETTINGS))
 
+    fun openAccessibilitySettings(): String = start(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+
     /** Opens another installed home screen (Projectivy first), or the system's home chooser. */
     fun openPreviousLauncher(): String {
         val homes = pm.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0)

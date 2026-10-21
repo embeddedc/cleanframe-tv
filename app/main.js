@@ -726,7 +726,11 @@
 
   /* ---------- Installed apps ---------- */
   function appsItems() { return catalog.error ? [] : ALPHA; }
-  function appsHead() { return catalog.error ? [['retry', 'Try again', '', '']] : [['editor', 'Apps on Home', '', 'home']]; }
+  function appsHead(t) {
+    if (catalog.error) return [['retry', 'Try again', '', '']];
+    if (t.mode === 'pick') return t.button.target ? [['remove', 'Remove ' + t.button.name, '', '']] : [];
+    return [['editor', 'Apps on Home', '', 'home']];
+  }
   V.apps = {
     sheet: true,
     norm: function (t) {
@@ -739,15 +743,15 @@
       if (k === 'back') { pop(); return; }
       if (f.zone === 'head') {
         if (k === 'down' && n) f.zone = 'grid';
-        else if (k === 'ok') { if (catalog.error) refreshCatalog(); else openEditor('apps'); }
+        else if (k === 'ok') { if (catalog.error) refreshCatalog(); else if (t.mode === 'pick') setButtonTarget(t, ''); else openEditor('apps'); }
         return;
       }
       if (k === 'left' && col > 0) f.i--;
       else if (k === 'right' && col < COLS - 1 && f.i < n - 1) f.i++;
       else if (k === 'down' && row < Math.ceil(n / COLS) - 1) f.i = Math.min(f.i + COLS, n - 1);
-      else if (k === 'up') { if (row > 0) f.i -= COLS; else f.zone = 'head'; }
-      else if (k === 'ok' && n) launch(items[f.i]);
-      S.appsFocus = items[f.i] || null;
+      else if (k === 'up') { if (row > 0) f.i -= COLS; else if (appsHead(t).length) f.zone = 'head'; }
+      else if (k === 'ok' && n) { if (t.mode === 'pick') setButtonTarget(t, app(items[f.i]).appId); else launch(items[f.i]); }
+      if (t.mode !== 'pick') S.appsFocus = items[f.i] || null;
     },
     point: function (t, z, i) { if (z === 'grid') { t.f.zone = 'grid'; t.f.i = i; } else if (z === 'head') t.f.zone = 'head'; else return; this.key(t, 'ok'); }
   };
@@ -885,7 +889,7 @@
     if (id === 'editor') openEditor('settings');
     else openAppearance(id);
   }
-  var DETAIL_NAMES = { background: 'Background', layout: 'Layout', typography: 'Typography', focus: 'Focus', rotation: 'Rotation', android: 'Android TV' };
+  var DETAIL_NAMES = { background: 'Background', layout: 'Layout', typography: 'Typography', focus: 'Focus', rotation: 'Rotation', android: 'Android TV', buttons: 'Remote buttons' };
   function choice(axis, value, disabled) {
     return { action: axis === 'mode' ? 'rotation.' + value : 'choice.' + axis + '.' + value, axis: axis, value: value, disabled: !!disabled,
       label: axis === 'font' ? FONTS[value].name : axis === 'mode' ? MODES.filter(function (m) { return m.id === value; })[0].name : value === 'both' ? 'Both' : VALUE_NAMES[value] };
@@ -914,13 +918,35 @@
     ];
     if (t.group === 'rotation') return [{ id: 'mode', title: '', items: options('mode', MODES.map(function (m) { return m.id; }), flat),
       reason: flat ? 'Choose Photo in Background to use rotation.' : 'Timed changes pause while Settings or another panel is open.' }];
+    if (t.group === 'buttons') return buttonSections();
     return [{ id: 'android', title: '', items: [
       { action: 'android.settings', label: 'TV settings', description: 'Picture, sound, network and inputs' },
+      { action: 'android.buttons', label: 'Remote buttons', description: buttonsSummary() },
       { action: 'android.previous', label: 'Previous launcher', description: 'Open the home screen you used before CleanFrame TV' }
     ] }];
   }
+  /* Remote buttons: Android's accessibility service catches assigned keys (such as Mi or Netflix) and opens the app. */
+  function remoteButtons() { return FrameDevice.buttons ? FrameDevice.buttons() : { enabled: false, buttons: [] }; }
+  function buttonsSummary() {
+    var n = remoteButtons().buttons.length;
+    return n ? n + (n === 1 ? ' button opens an app' : ' buttons open apps') : 'Open apps with buttons like Mi or Netflix';
+  }
+  function targetName(appId) {
+    for (var i = 0; i < APPS.length; i++) if (APPS[i].appId === appId) return APPS[i].name;
+    return appId;
+  }
+  function buttonSections() {
+    var rb = remoteButtons(), out = [];
+    if (!rb.enabled) out.push({ id: 'service', title: '', items: [{ action: 'buttons.service', label: 'Turn on remote buttons', description: 'In Accessibility, turn on CleanFrame TV remote buttons' }] });
+    if (rb.buttons.length) out.push({ id: 'assigned', title: 'Assigned', items: rb.buttons.map(function (b) {
+      return { action: 'buttons.edit.' + b.code, label: b.name, description: 'Opens ' + targetName(b.target) };
+    }) });
+    out.push({ id: 'add', title: rb.buttons.length ? 'More' : '', items: [{ action: 'buttons.add', label: 'Add a button', description: 'Press a button, then pick what it opens', disabled: !rb.enabled }] });
+    return out;
+  }
+  function detailParent(t) { return t.group === 'rotation' ? 'Background' : t.group === 'buttons' ? 'Android TV' : 'Settings'; }
   function detailRows(t) {
-    var rows = [[{ action: 'settings.back', label: t.group === 'rotation' ? 'Background' : 'Settings' }]];
+    var rows = [[{ action: 'settings.back', label: detailParent(t) }]];
     detailSections(t).forEach(function (section) {
       var enabled = section.items.filter(function (item) { return !item.disabled; });
       if (section.horizontal && enabled.length) rows.push(enabled);
@@ -964,6 +990,42 @@
     else if (item.action === 'background.rotation') openAppearance('rotation');
     else if (item.action === 'android.settings') perform('TV settings', FrameDevice.settings);
     else if (item.action === 'android.previous') perform('Previous launcher', FrameDevice.previousLauncher);
+    else if (item.action === 'android.buttons') openAppearance('buttons');
+    else if (item.action === 'buttons.service') perform('Accessibility settings', FrameDevice.accessibilitySettings);
+    else if (item.action === 'buttons.add') learnButton();
+    else if (item.action.indexOf('buttons.edit.') === 0) openButtonPicker(+item.action.slice(13));
+  }
+  /* "Press a remote button": Android hands the next assignable key to cleanframe:button-learned. */
+  var learnTimer = 0;
+  function learnButton() {
+    FrameDevice.learnButton(function (err) {
+      if (err) { message('Remote buttons', err.message); return; }
+      push({ id: 'message', learning: true, f: { b: 0 }, content: { title: 'Press a remote button',
+        line: 'Press the button you want to use, such as Mi or Netflix.',
+        note: 'Arrows, OK, Back, Home, volume and power keep their jobs. Back cancels.', actions: [['back', 'Cancel']] } });
+      clearTimeout(learnTimer);
+      learnTimer = setTimeout(function () { if (top().learning) { closeMessage(top()); render(); } }, 30000);
+    });
+  }
+  function closeMessage(t) {
+    pop();
+    if (t.learning) { clearTimeout(learnTimer); FrameDevice.cancelLearnButton(); }
+  }
+  /* Choosing what a button opens reuses the All apps grid. */
+  function openButtonPicker(code, name) {
+    var current = remoteButtons().buttons.filter(function (b) { return b.code === code; })[0];
+    var button = { code: code, name: name || (current ? current.name : 'Button ' + code), target: current ? current.target : '' };
+    var i = ALPHA.map(function (id) { return app(id).appId; }).indexOf(button.target);
+    push({ id: 'apps', mode: 'pick', button: button, top: 0, f: { zone: 'grid', i: Math.max(0, i), h: 0 } });
+    refreshCatalog();
+  }
+  function setButtonTarget(t, appId) {
+    FrameDevice.setButton(t.button.code, appId, function (err) {
+      var d;
+      if (err) { message('Remote buttons', err.message); return; }
+      pop(); d = top();
+      if (d.id === 'appearance' && d.group === 'buttons') detailFocus(d, { action: appId ? 'buttons.edit.' + t.button.code : 'buttons.add' });
+    });
   }
   V.appearance = {
     norm: function (t) {
@@ -1004,8 +1066,8 @@
       var A = messageContent(t).actions, a;
       if (k === 'left') t.f.b = Math.max(0, t.f.b - 1);
       else if (k === 'right') t.f.b = Math.min(A.length - 1, t.f.b + 1);
-      else if (k === 'back') pop();
-      else if (k === 'ok') { a = A[t.f.b][0]; pop(); }
+      else if (k === 'back') closeMessage(t);
+      else if (k === 'ok') { a = A[t.f.b][0]; closeMessage(t); }
     },
     point: function (t, z, i) { if (z === 'act') { t.f.b = i; this.key(t, 'ok'); } }
   };
@@ -1448,7 +1510,7 @@
         + ' data-z="detail" data-i="0" data-id="' + item.action + '" data-action="' + item.action + '">' + inner
         + (item.axis ? '<span class="setting-tick" aria-hidden="true">' + (applied ? icon('check') : '') + '</span>' : '') + '</button>';
     }
-    setHTML(appearanceBack, command({ action: 'settings.back', label: t.group === 'rotation' ? 'Background' : 'Settings' }, icon('left') + '<span>' + (t.group === 'rotation' ? 'Background' : 'Settings') + '</span>', 'setting-back'));
+    setHTML(appearanceBack, command({ action: 'settings.back', label: detailParent(t) }, icon('left') + '<span>' + detailParent(t) + '</span>', 'setting-back'));
     setHTML(appearanceRows, detailSections(t).map(function (section) {
       return '<section class="setting-section' + (section.horizontal ? ' is-horizontal' : '') + ' section-' + section.id + '">'
         + (section.title ? '<h3 class="setting-label" id="setting-' + section.id + '">' + section.title + '</h3>' : '')
@@ -1471,7 +1533,9 @@
         + command({ action: 'settings.retry', label: 'Try again' }, '<span>Try again</span>', 'setting-retry');
     }
     setHTML(appearanceStatus, status);
-    hint = selected.disabled ? '' : selected.action === 'settings.back' ? 'Return to ' + (t.group === 'rotation' ? 'Background' : 'Settings') : selected.action === 'settings.retry' ? 'Retry this change' : selected.axis ? 'Apply selected setting' : selected.action === 'background.wallpaper' ? 'Choose a wallpaper' : selected.action === 'background.rotation' ? 'Choose a rotation interval' : 'Open on the TV';
+    hint = selected.disabled ? '' : selected.action === 'settings.back' ? 'Return to ' + detailParent(t) : selected.action === 'settings.retry' ? 'Retry this change' : selected.axis ? 'Apply selected setting' : selected.action === 'background.wallpaper' ? 'Choose a wallpaper' : selected.action === 'background.rotation' ? 'Choose a rotation interval' : selected.action === 'android.buttons' ? 'Assign remote buttons'
+      : selected.action === 'buttons.add' ? 'Then press the remote button' : selected.action.indexOf('buttons.edit.') === 0 ? 'Change or remove this button'
+      : selected.action === 'buttons.service' ? 'Open Accessibility settings' : 'Open on the TV';
     setHTML(appearanceDesc, hint ? '<span class="remote-key">OK</span><span>' + esc(hint) + '</span>' : '');
   }
   function renderWallpaper(t) {
@@ -1573,26 +1637,27 @@
       return '<h2 class="msg-title">' + esc(m.title) + '</h2><p class="msg-line">' + esc(m.line) + '</p><p class="msg-note">' + esc(m.note) + '</p><div class="msg-acts" data-slot="acts"></div>';
     }
   };
-  function gridTileHtml(id) {
-    var a = app(id), state = onHome(id) ? badge(true) + '<span>On Home</span>' : '';
+  function gridTileHtml(id, target) {
+    var a = app(id), state = target !== undefined ? (a.appId === target ? badge(true) + '<span>Assigned</span>' : '') : onHome(id) ? badge(true) + '<span>On Home</span>' : '';
     return '<span class="panel-content">' + appMark(a, 120, 72, 58) + '<span class="label">' + esc(a.name) + '</span></span><span class="state">' + state + '</span>';
   }
   var FILLS = {
     apps: function (t, el) {
       var f = t.f, items = appsItems(), n = items.length, rows = Math.ceil(n / COLS), vis = 3, row = Math.floor(f.i / COLS);
-      setHTML(el.title, 'All apps');
-      setHTML(el.sub, esc(catalog.loading ? 'Loading installed apps…' : catalog.error || (!n ? 'No installed apps found.' : '')));
-      setHTML(el.head, headButtons(appsHead(), f.zone === 'head' ? 0 : -1, 'apps'));
+      var pick = t.mode === 'pick', target = pick ? t.button.target : undefined;
+      setHTML(el.title, pick ? esc('Choose what ' + t.button.name + ' opens') : 'All apps');
+      setHTML(el.sub, esc(catalog.loading ? 'Loading installed apps…' : catalog.error || (!n ? 'No installed apps found.' : pick ? 'OK assigns it. Back keeps the current choice.' : '')));
+      setHTML(el.head, headButtons(appsHead(t), f.zone === 'head' ? 0 : -1, 'apps'));
       el.head.className = 's-head' + (f.zone === 'head' ? ' is-awake' : '');
       if (f.zone === 'grid') { if (row < t.top) t.top = row; if (row > t.top + vis - 1) t.top = row - vis + 1; }
       t.top = clamp(t.top, 0, Math.max(0, rows - vis));
       keyed(el.grid, items.map(function (id) { return { key: id, id: id }; }), function (tile, it, i) {
         var focus = f.zone === 'grid' && i === f.i;
-        setContent(tile, [it.id, app(it.id).name, onHome(it.id)].join('|'), gridTileHtml(it.id));
+        setContent(tile, [it.id, app(it.id).name, onHome(it.id), target].join('|'), gridTileHtml(it.id, target));
         tile.className = 'gt' + (focus ? ' is-focus' : '');
         tile.style.transform = 'translate3d(' + ((i % COLS) * GRID_COL) + 'px,' + (Math.floor(i / COLS) * GRID_ROW) + 'px,0)';
         tile.setAttribute('role', 'button'); tile.setAttribute('aria-label', app(it.id).name);
-        attrs(tile, 'grid', i, 'apps.open.' + it.id);
+        attrs(tile, 'grid', i, (pick ? 'apps.pick.' : 'apps.open.') + it.id);
       });
       el.grid.style.transform = 'translate3d(0,' + (-t.top * GRID_ROW) + 'px,0)';
       el.view.className = 'grid-view' + (t.top > 0 ? ' more-before' : '') + (rows - t.top > vis ? ' more-after' : '');
@@ -1904,6 +1969,13 @@
     else { fit(); release(); after(); updateClock(); focusStage(); }
   });
   window.addEventListener('resize', fit);
+  window.addEventListener('cleanframe:button-learned', function (ev) {
+    var b = ev.detail || {};
+    if (!top().learning || typeof b.code !== 'number') return;
+    clearTimeout(learnTimer); pop();
+    openButtonPicker(b.code, b.name);
+    render(); syncRotation();
+  });
 
   /* Readable browser checks use the real state and actions, without fake outcomes. */
   var NAV = { left: 'left', right: 'right', up: 'up', down: 'down', ok: 'ok', enter: 'ok', back: 'back', escape: 'back' };

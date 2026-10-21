@@ -124,6 +124,29 @@ assert.deepEqual(plain(failing.primaryApps()), []);
 failing = load(fakeBridge(installed, { appsJson: () => '{not json' }), storage);
 assert.equal(failing.primaryApps().length, 3);
 
+// Remote buttons: state from the bridge, learning, assigning and Accessibility settings.
+const buttonBridge = fakeBridge(installed, {
+  buttonsJson: () => JSON.stringify({ enabled: true, buttons: [{ code: 192, name: 'Button 5', target: 'org.smarttube.stable' }, { code: 'x' }] }),
+  learnButton: () => { buttonBridge.calls.push(['learn']); return ''; },
+  cancelLearnButton: () => { buttonBridge.calls.push(['cancel']); },
+  setButton: (code, target) => { buttonBridge.calls.push(['set', code, target]); return code === 4 ? 'This button can’t be assigned.' : ''; },
+  openAccessibilitySettings: () => { buttonBridge.calls.push(['a11y']); return ''; }
+});
+dev = load(buttonBridge);
+assert.deepEqual(plain(dev.buttons()), { enabled: true, buttons: [{ code: 192, name: 'Button 5', target: 'org.smarttube.stable' }] });
+dev.learnButton((err) => { result = err; }); assert.equal(result, null);
+dev.cancelLearnButton();
+dev.setButton(193, 'org.jellyfin.androidtv', (err) => { result = err; }); assert.equal(result, null);
+dev.setButton(4, 'x', (err) => { result = err; }); assert.match(result.message, /can’t be assigned/);
+dev.accessibilitySettings((err) => { result = err; }); assert.equal(result, null);
+assert.deepEqual(plain(buttonBridge.calls), [['learn'], ['cancel'], ['set', 193, 'org.jellyfin.androidtv'], ['set', 4, 'x'], ['a11y']]);
+dev = load(fakeBridge(installed, { buttonsJson: () => '{oops' }));
+assert.deepEqual(plain(dev.buttons()), { enabled: false, buttons: [] });
+dev = load(null);
+assert.deepEqual(plain(dev.buttons()), { enabled: false, buttons: [] });
+dev.learnButton((err) => { result = err; }); assert.match(result.message, /Preview/);
+dev.setButton(192, 'x', (err) => { result = err; }); assert.match(result.message, /Preview/);
+
 console.log('device.js adapter checks passed.');
 
 // No known brand installed: Home starts with the first installed apps (not inputs), unmarked.

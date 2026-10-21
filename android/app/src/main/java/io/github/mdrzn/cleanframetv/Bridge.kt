@@ -1,6 +1,7 @@
 package io.github.mdrzn.cleanframetv
 
 import android.text.format.DateFormat
+import android.view.KeyEvent
 import android.webkit.JavascriptInterface
 
 /**
@@ -19,5 +20,28 @@ class Bridge(private val activity: HomeActivity, private val catalog: AndroidCat
     @JavascriptInterface fun photosJson(): String = photos.json()
     @JavascriptInterface fun refreshPhotos() { feed.refresh(force = true) }
     @JavascriptInterface fun setPhotoSource(source: String) = feed.setSource(source)
+    @JavascriptInterface fun buttonsJson(): String = Buttons.listJson(KeyRemapService.running, catalog.buttons(), ::buttonName)
+
+    /** The next assignable key arrives as the `cleanframe:button-learned` event, with its code and name. */
+    @JavascriptInterface fun learnButton(): String {
+        if (!KeyRemapService.running) return "Turn on CleanFrame TV remote buttons in Accessibility settings first."
+        KeyRemapService.learn(LEARN_MS) { code -> activity.buttonLearned(code, buttonName(code)) }
+        return ""
+    }
+    @JavascriptInterface fun cancelLearnButton() = KeyRemapService.cancelLearning()
+    @JavascriptInterface fun setButton(code: Int, target: String): String {
+        if (!Buttons.assignable(code)) return "This button can’t be assigned."
+        catalog.saveButtons(Buttons.withButton(catalog.buttons(), code, target))
+        return ""
+    }
+    @JavascriptInterface fun openAccessibilitySettings(): String = catalog.openAccessibilitySettings()
+
     @JavascriptInterface fun takeConfig(): String { val value = pendingConfig ?: ""; pendingConfig = null; return value }
+
+    private fun buttonName(code: Int) = Buttons.name(code, KeyEvent.keyCodeToString(code))
+
+    companion object {
+        /** Matches the interface's own timeout for "Press a remote button". */
+        const val LEARN_MS = 30_000L
+    }
 }

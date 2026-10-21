@@ -58,7 +58,7 @@ async function run(name, fn) {
 async function closePage() { if (current) { current.__closing = true; await current.close(); current = null; } }
 
 // Production still calls its unmodified device.js adapter; only the Android bridge object is fake.
-function installHarness({ seed, legacy, mock, catalog, photos, config, is24, minuteMs, noFontAPI, storageFailure }) {
+function installHarness({ seed, legacy, mock, catalog, photos, config, is24, minuteMs, noFontAPI, storageFailure, buttons }) {
   if (!sessionStorage.getItem('__cleanframe_seeded')) {
     if (seed !== undefined) localStorage.setItem('cleanframe.home.v1', typeof seed === 'string' ? seed : JSON.stringify(seed));
     if (legacy !== undefined) localStorage.setItem('cleanframe.shore.v1', typeof legacy === 'string' ? legacy : JSON.stringify(legacy));
@@ -82,7 +82,7 @@ function installHarness({ seed, legacy, mock, catalog, photos, config, is24, min
   if (!mock) return;
   // Synchronous like the real @JavascriptInterface methods. Actions are recorded in calls; reads are counted.
   // __cleanframe_catalog_down survives reloads, to fail the catalogue from the very first read.
-  const tv = window.__tv = { catalog, photos, is24, catalogFailure: !!sessionStorage.getItem('__cleanframe_catalog_down'), launchFailure: false, calls: [], reads: { apps: 0, photos: 0, config: 0, is24: 0 } };
+  const tv = window.__tv = { catalog, photos, is24, buttons: buttons || { enabled: true, list: [{ code: 192, name: 'Button 5', target: 'org.smarttube.stable' }] }, catalogFailure: !!sessionStorage.getItem('__cleanframe_catalog_down'), launchFailure: false, calls: [], reads: { apps: 0, photos: 0, config: 0, is24: 0 } };
   window.CleanFrameAndroid = {
     // A Java exception in a bridge method reaches the page as a thrown Error.
     appsJson() { tv.reads.apps++; if (tv.catalogFailure) throw new Error('Java exception was raised during method invocation'); return JSON.stringify(tv.catalog); },
@@ -93,6 +93,17 @@ function installHarness({ seed, legacy, mock, catalog, photos, config, is24, min
     is24Hour() { tv.reads.is24++; return tv.is24; },
     photosJson() { tv.reads.photos++; return JSON.stringify(tv.photos); },
     refreshPhotos() { tv.calls.push(['refreshPhotos']); },
+    // Remote buttons: the real service hands the learned key to the page as cleanframe:button-learned.
+    buttonsJson() { return JSON.stringify({ enabled: tv.buttons.enabled, buttons: tv.buttons.list }); },
+    learnButton() { tv.calls.push(['learnButton']); return tv.buttons.enabled ? '' : 'Turn on CleanFrame TV remote buttons in Accessibility settings first.'; },
+    cancelLearnButton() { tv.calls.push(['cancelLearnButton']); },
+    setButton(code, target) {
+      tv.calls.push(['setButton', code, target]);
+      tv.buttons.list = tv.buttons.list.filter(b => b.code !== code);
+      if (target) tv.buttons.list = tv.buttons.list.concat([{ code, name: 'Button ' + (code - 187), target }]).sort((a, b) => a.code - b.code);
+      return '';
+    },
+    openAccessibilitySettings() { tv.calls.push(['openAccessibilitySettings']); return ''; },
     // The shell hands an ADB configuration over once; it survives page reloads, so remember that it was taken.
     takeConfig() {
       tv.reads.config++;
@@ -355,6 +366,46 @@ try {
     check('A cached Home app still opens', same(await lastCall(), ['launch', PACKAGE.netflix]), await lastCall());
     await library();
     check('All apps reports the failure with a retry', (await call('actions')).includes('apps.retry'));
+  });
+  await run('Remote buttons in Settings', async () => {
+    const learned = (code, name) => current.evaluate(([code, name]) => window.dispatchEvent(new CustomEvent('cleanframe:button-learned', { detail: { code, name } })), [code, name]);
+    const title = () => current.evaluate(() => { const v = ShoreQA.where().view; const el = document.querySelector(v === 'appearance' ? '#appearanceTitle' : '.sheet .s-title'); return el ? el.textContent : ''; });
+    await page({ buttons: { enabled: false, list: [] } });
+    await scene('settings'); await act('settings.group.android');
+    check('Android TV lists Remote buttons', (await call('actions')).includes('android.buttons'));
+    await act('android.buttons');
+    check('Remote buttons opens its own group', (await state()).view === 'appearance' && await title() === 'Remote buttons', await title());
+    let actions = await call('actions');
+    check('With the service off, the screen offers Accessibility settings and no Add', actions.includes('buttons.service') && !(await current.locator('[data-action="buttons.add"]:not(.is-disabled)').count()), actions);
+    await act('buttons.service');
+    check('Turn on remote buttons opens Accessibility settings', same(await lastCall(), ['openAccessibilitySettings']));
+    await current.evaluate(() => { __tv.buttons.enabled = true; window.dispatchEvent(new Event('focus')); });
+    check('Returning with the service on enables Add a button', (await current.locator('[data-action="buttons.add"]:not(.is-disabled)').count()) === 1 && !(await call('actions')).includes('buttons.service'));
+
+    await act('buttons.add');
+    check('Add a button asks for a remote button', same(await lastCall(), ['learnButton']) && (await state()).view === 'message' && (await current.locator('.msg-title').textContent()) === 'Press a remote button');
+    await nav('back');
+    check('Back cancels learning and returns to Remote buttons', same(await lastCall(), ['cancelLearnButton']) && (await state()).view === 'appearance');
+    await act('buttons.add');
+    await learned(193, 'Button 6');
+    check('A learned button opens the app picker', (await state()).view === 'apps' && await title() === 'Choose what Button 6 opens', await title());
+    actions = await call('actions');
+    check('The picker lists apps and inputs and offers no Remove for a new button', actions.includes('apps.pick.jellyfin') && actions.includes('apps.pick.nintendoswitch') && actions.includes('apps.pick.' + PC) && !actions.includes('apps.remove') && !actions.some(a => a.startsWith('apps.open.')), actions);
+    await act('apps.pick.jellyfin');
+    check('Choosing an app assigns the button', same(await lastCall(), ['setButton', 193, PACKAGE.jellyfin]));
+    check('Back on Remote buttons with the new button focused', (await state()).view === 'appearance' && (await state()).focusAction === 'buttons.edit.193', (await state()).focusAction);
+    check('The assigned button shows what it opens', (await current.locator('[data-action="buttons.edit.193"]').textContent()).includes('Opens Jellyfin'));
+
+    await act('buttons.edit.193');
+    check('Editing shows the current choice and Remove', (await call('actions')).includes('apps.remove') && (await current.locator('[data-action="apps.pick.jellyfin"]').textContent()).includes('Assigned'));
+    await nav('down'); await nav('up');
+    await current.keyboard.down('Enter'); await current.waitForTimeout(150);
+    check('OK in the picker assigns on key down (no hold-to-close)', (await lastCall())[0] === 'setButton' && !(await calls()).some(c => c[0] === 'closeApp'), await lastCall());
+    await current.keyboard.up('Enter');
+    await act('buttons.edit.193'); await act('apps.remove');
+    check('Remove deletes the button', same(await lastCall(), ['setButton', 193, '']) && !(await call('actions')).includes('buttons.edit.193') && (await state()).focusAction === 'buttons.add');
+    await nav('back');
+    check('Back from Remote buttons returns to Android TV', (await state()).view === 'appearance' && await title() === 'Android TV');
   });
   await run('Native icon and failed-image fallback', async () => {
     await page({ catalog: CATALOG.map(a => a.appId === EXTRA ? { ...a, icon: '/icons/' + EXTRA + '.png' } : a) });

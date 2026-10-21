@@ -30,7 +30,11 @@ Hold-to-close ends the app's background processes, which frees its memory. It is
 
 ## Remote buttons
 
-With the optional accessibility service enabled and buttons assigned (see the [install guide](install.md#remote-buttons)), an assigned button opens its app or input from anywhere, before the TV's own handler sees it. Unassigned keys behave as before.
+Settings → Android TV → Remote buttons lists the assigned buttons ("Button 5 · Opens YouTube") and Add a button. If the accessibility service is off, the screen offers Turn on remote buttons, which opens Android's Accessibility settings, and Add a button is inactive until the service runs.
+
+Add a button shows "Press a remote button". The next assignable key goes to CleanFrame TV instead of its usual job (a vendor key no longer opens its own screen); arrows, OK, Back, Home, volume and power keep working, and Back or Cancel ends the prompt, as do 30 seconds without a key or leaving Home. The key opens a picker: the All apps grid titled "Choose what <button> opens", where OK assigns the focused app or input at once (holding OK does not close apps here). Choosing an assigned button opens the same picker with its current target marked Assigned and a Remove action at the top. After a change, focus returns to that button.
+
+With the service enabled, an assigned button opens its app or input from anywhere, before the TV's own handler sees it. Unassigned keys behave as before. Assignments can also be made from a computer (see the [install guide](install.md#remote-buttons)).
 
 ## Settings and appearance
 
@@ -43,7 +47,7 @@ Settings opens a grouped overview: Background, Layout, Typography, Focus, Apps o
 | Typography | Manrope and the other bundled typefaces |
 | Focus | Type or Glass; Soft, Frost or Clear tint material |
 | Apps on Home | Membership and arrangement editor |
-| Android TV | TV settings (Android's Settings app) and Previous launcher (the other installed launcher, Projectivy first, or Android's home chooser) |
+| Android TV | TV settings (Android's Settings app), Remote buttons (below) and Previous launcher (the other installed launcher, Projectivy first, or Android's home chooser) |
 
 Up/Down moves between rows. Left/Right moves between choices in a horizontal row. Focus alone changes neither the preview nor saved preferences in these appearance groups. Wallpaper has its own temporary photo preview, described below. OK applies the focused value. A checkmark identifies the applied value; the filled plate identifies remote focus. Applying the current value does not write again.
 

@@ -118,6 +118,28 @@
     launchApp(chosen[brand], done);
   }
   function settings(done) { call('openSettings', done); }
+  /* Remote buttons (Settings → Android TV): Android's accessibility service catches the assigned keys. */
+  var NO_BUTTONS = 'Preview: remote buttons need the TV.';
+  function buttons() {
+    var b = bridge(), state = null;
+    if (b && b.buttonsJson) try { state = parse(b.buttonsJson(), null); } catch (e) { state = null; }
+    if (!state || typeof state !== 'object') return { enabled: false, buttons: [] };
+    return { enabled: !!state.enabled, buttons: Array.isArray(state.buttons) ? state.buttons.filter(function (x) {
+      return x && typeof x.code === 'number' && typeof x.name === 'string' && typeof x.target === 'string';
+    }) : [] };
+  }
+  function learnButton(done) {
+    var b = bridge();
+    if (!b || !b.learnButton) { result(NO_BUTTONS, done); return; }
+    try { result(b.learnButton(), done); } catch (e) { result('The TV did not respond. Please try again.', done); }
+  }
+  function cancelLearnButton() { var b = bridge(); if (b && b.cancelLearnButton) try { b.cancelLearnButton(); } catch (e) {} }
+  function setButton(code, target, done) {
+    var b = bridge();
+    if (!b || !b.setButton) { result(NO_BUTTONS, done); return; }
+    try { result(b.setButton(code, String(target || '')), done); } catch (e) { result('The TV did not respond. Please try again.', done); }
+  }
+  function accessibilitySettings(done) { call('openAccessibilitySettings', done); }
   function previousLauncher(done) { call('openPreviousLauncher', done); }
   function is24Hour() { var b = bridge(); try { return b ? !!b.is24Hour() : true; } catch (e) { return true; } }
   function photos() {
@@ -141,6 +163,7 @@
 
   window.FrameDevice = {
     primaryApps: primaryApps, brandIds: brandIds, apps: apps, launch: launch, launchApp: launchApp, closeApp: closeApp, settings: settings,
+    buttons: buttons, learnButton: learnButton, cancelLearnButton: cancelLearnButton, setButton: setButton, accessibilitySettings: accessibilitySettings,
     previousLauncher: previousLauncher, is24Hour: is24Hour, photos: photos, refreshPhotos: refreshPhotos, photoSource: photoSource,
     takeConfig: takeConfig, android: !!bridge()
   };

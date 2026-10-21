@@ -78,6 +78,16 @@ The service names differ between TV makers; the last segment is what matters.
 
 Some remotes have buttons that the TV maker handles before any app sees them. On Xiaomi TVs, for example, the Mi button opens Live TV and the Netflix button always opens Netflix. CleanFrame TV can send such buttons to an app or input of your choice through an optional accessibility service.
 
+### On the TV
+
+1. Open **Settings → Android TV → Remote buttons**.
+2. The first time, choose **Turn on remote buttons**: Android's Accessibility settings open. Turn on **CleanFrame TV remote buttons** (Android only lets you do this yourself), then press Back.
+3. Choose **Add a button**, press the remote button you want to use, and pick the app or input it should open.
+
+Choose an assigned button to change what it opens or to remove it. Arrows, OK, Back, Home, volume and power can't be assigned. Buttons are named after Android's key names, so a vendor key may appear as, for example, "Button 5".
+
+### From a computer
+
 1. **Find the button's keycode.** Turn on debug mode and enable the service (step 3), then watch the log while pressing the button:
 
    ```sh

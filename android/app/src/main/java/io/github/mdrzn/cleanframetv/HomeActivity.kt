@@ -144,6 +144,8 @@ class HomeActivity : Activity() {
 
     override fun onPause() {
         if (forwarded) { super.onPause(); return }
+        // Leaving Home (e.g. for Accessibility settings) ends "Press a remote button".
+        KeyRemapService.cancelLearning()
         web?.onPause()
         super.onPause()
     }
@@ -204,6 +206,10 @@ class HomeActivity : Activity() {
     }
 
     private fun event(name: String) = js("window.dispatchEvent(new Event('$name'))")
+
+    /** Called from [KeyRemapService] (main thread) when Settings is assigning a remote button. */
+    fun buttonLearned(code: Int, name: String) =
+        js("window.dispatchEvent(new CustomEvent('cleanframe:button-learned',{detail:{code:$code,name:${Catalog.quote(name)}}}))")
 
     private fun js(code: String) {
         runOnUiThread { if (pageReady) web?.evaluateJavascript(code, null) }
