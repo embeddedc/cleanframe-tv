@@ -33,6 +33,12 @@ The unit tests cover the catalogue rules (deduplication, TV activities, hidden s
 
 ## On a TV
 
+The TCL compatibility preview also requires the manual checks in
+[TCL compatibility](tcl-compatibility.md#install-and-test). Its pure policy tests cover exact Home
+matching, opt-in, lock/screen state, duplicate events, persistent attempt history, clock changes and
+the loop limit. Browser checks cover the setup entry point and native launch failure. These tests
+do not establish that a particular TV delivers the necessary accessibility events.
+
 These checks need a TV or box you are allowed to experiment on. Keep the previous launcher installed and note how to restore it ([install guide](install.md#going-back-or-uninstalling)).
 
 1. Press Home from another app: CleanFrame TV appears, with the focus where you left it.

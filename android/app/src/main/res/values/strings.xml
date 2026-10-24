@@ -1,6 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">CleanFrame TV</string>
+    <string name="home_service_label">CleanFrame TV Home compatibility</string>
+    <string name="home_service_description">When enabled in CleanFrame, opens CleanFrame when the Google TV home screen appears. Reads only Google TV window names, never screen contents or key presses. Keeps Google TV installed and enabled. Turn it off here to stop.</string>
+    <string name="home_settings_title">Home button on Google TV</string>
+    <string name="home_compatibility_explanation">If Home keeps opening Google TV, try compatibility mode. Keep the Google TV launcher enabled. This mode opens CleanFrame when Google TV Home appears, including when returning from an app. It uses only Google TV window names; it cannot read screen contents.</string>
+    <string name="home_compatibility_enable">Turn on compatibility</string>
+    <string name="home_compatibility_disable">Turn off compatibility</string>
+    <string name="home_accessibility_settings">Open Accessibility settings</string>
+    <string name="home_previous_launcher">Turn off compatibility and open previous launcher</string>
+    <string name="home_return">Return to CleanFrame</string>
+    <string name="home_unknown">Unknown</string>
+    <string name="home_status">System Home: %1$s\n%2$s</string>
+    <string name="home_google_unavailable">Google TV Home is unavailable. Restore its launcher before trying this mode.</string>
+    <string name="home_compatibility_off">Compatibility is off.</string>
+    <string name="home_compatibility_on">Compatibility is on. Test Home with your remote.</string>
+    <string name="home_compatibility_needs_service">Next: open Accessibility settings and enable CleanFrame TV Home compatibility, then return here.</string>
+    <string name="home_compatibility_paused">Compatibility paused after repeated launch attempts or a clock change. Google TV remains available. You can try turning compatibility on again.</string>
+    <string name="home_compatibility_save_failed">Compatibility could not save its settings and has stopped.</string>
+    <string name="home_compatibility_launch_failed">Compatibility could not open CleanFrame and has stopped.</string>
+    <string name="home_compatibility_interrupted">Android interrupted compatibility. You can turn it on again here.</string>
     <string name="key_service_label">CleanFrame TV remote buttons</string>
     <string name="key_service_description">Opens the app you assigned when you press a remote button such as the Netflix or Mi key. It only acts on the buttons you assign; every other key press passes through unchanged and nothing is stored or sent anywhere.</string>
 </resources>

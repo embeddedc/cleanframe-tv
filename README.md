@@ -1,4 +1,10 @@
-# CleanFrame TV
+# CleanFrame TV — TCL compatibility fork
+
+This fork of [mdrzn/cleanframe-tv](https://github.com/mdrzn/cleanframe-tv) adds an optional
+Google TV Home redirect, tested on a TCL Smart TV Pro running Android 11. Keep the stock Google TV
+launcher enabled. Start with the [TCL preview build and setup guide](docs/tcl-compatibility.md).
+The physical Home button works on the tested TV; returning from Settings can still briefly show
+Google TV. Reboot persistence and other TCL models have not been verified.
 
 A quieter home screen for Android TV. Your apps and HDMI inputs, a photograph and the time, with an interface made for the TV remote.
 
@@ -29,11 +35,20 @@ CleanFrame TV is an Android TV port of [CleanFrame](https://github.com/nthnclrk/
 | Reference TV | Xiaomi Mi TV Q1 (MiTV-MOOQ1), Android TV 10, MediaTek MT9632, 1.8 GB RAM, 1080p interface on a 4K panel |
 | Verified there | Home button, remote navigation in List and Dock, launching apps, All apps with HDMI inputs, Photo mode, Bing photos, hold-to-close, Mi/Netflix button remapping |
 | Memory | About 165 MB PSS for the launcher including its WebView; about 70 MB of that is file-backed and reclaimable |
-| Other devices | Should run on Android TV 8.0 (API 26) and newer, but untested. Google TV restricts third-party launchers more and is untested. |
+| TCL fork | TCL Smart TV Pro, Android 11: preview UI, Accessibility settings link, and Home redirect verified with Google TV kept enabled. See [test details and limits](docs/tcl-compatibility.md). |
+| Other devices | Requires Android TV 8.0 (API 26) or newer. Other Google TV firmware and TCL models remain untested. |
 
 Reports from other devices are welcome; see [Contribute](#contribute).
 
 ## Install
+
+For the experimental TCL/Google TV fallback that keeps the stock launcher enabled, see
+[TCL compatibility preview](docs/tcl-compatibility.md). It adds an optional Home compatibility
+service and a separate preview APK. Build and install that preview using the linked guide.
+
+### Upstream installation
+
+The commands below install the original upstream release, which does not contain this fork's TCL changes.
 
 Download the APK from [Releases](https://github.com/mdrzn/cleanframe-tv/releases/latest) (or [build it](#build-from-source)). You need a computer with [ADB](https://developer.android.com/tools/adb) and debugging enabled on the TV: Settings → Device Preferences → About, select Build seven times, then turn on Developer options → USB debugging (on many TVs this also enables network ADB on port 5555).
 

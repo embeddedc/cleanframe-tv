@@ -12,6 +12,12 @@
     <!-- Package visibility (Android 11+): the apps CleanFrame TV can list and launch. -->
     <queries>
         <intent>
+            <action android:name="android.settings.ACCESSIBILITY_TV_OEM_LINK" />
+        </intent>
+        <intent>
+            <action android:name="android.settings.ACCESSIBILITY_SETTINGS" />
+        </intent>
+        <intent>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
         </intent>
@@ -48,9 +54,32 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.HOME" />
                 <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Separate native recovery/settings screen, also opened by Accessibility settings. -->
+        <activity
+            android:name=".HomeSettingsActivity"
+            android:exported="true"
+            android:screenOrientation="landscape" />
+
+        <!-- Separate opt-in from remote key remapping; Google TV's launcher stays enabled. -->
+        <service
+            android:name=".HomeCompatibilityService"
+            android:exported="true"
+            android:label="@string/home_service_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/home_compatibility_service" />
+        </service>
 
         <!-- Optional remote button remapping (README: "Remote buttons"); off until enabled in Accessibility. -->
         <service

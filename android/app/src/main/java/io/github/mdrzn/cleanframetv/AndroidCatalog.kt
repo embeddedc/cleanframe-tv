@@ -71,6 +71,7 @@ class AndroidCatalog(private val context: Context) {
     /** Returns "" on success or a short message for the interface. */
     fun launch(appId: String): String {
         return try {
+            if (appId == HomeRedirectPolicy.GOOGLE_TV) HomeCompatibility(context).pause()
             val intent = if (appId.startsWith("input.")) {
                 val inputId = inputIds[appId] ?: run { entries(); inputIds[appId] } ?: return "This input is not available."
                 Intent(Intent.ACTION_VIEW, TvContract.buildChannelUriForPassthroughInput(inputId))
@@ -105,10 +106,24 @@ class AndroidCatalog(private val context: Context) {
 
     fun openSettings(): String = start(Intent(Settings.ACTION_SETTINGS))
 
-    fun openAccessibilitySettings(): String = start(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+    fun openAccessibilitySettings(): String {
+        // Some TCL Google TVs route the standard action to a framework placeholder that never
+        // opens settings. Prefer their exported OEM link, then the standard action elsewhere.
+        for (action in listOf("android.settings.ACCESSIBILITY_TV_OEM_LINK", Settings.ACTION_ACCESSIBILITY_SETTINGS)) {
+            val activity = pm.resolveActivity(Intent(action), PackageManager.MATCH_DEFAULT_ONLY)?.activityInfo ?: continue
+            if (activity.packageName == "com.google.android.tv.frameworkpackagestubs") continue
+            val error = start(Intent(action).setClassName(activity.packageName, activity.name))
+            if (error.isEmpty()) return ""
+        }
+        return "Open Accessibility from your TV’s Settings to enable the CleanFrame service."
+    }
+
+    fun openHomeSettings(): String = start(Intent(context, HomeSettingsActivity::class.java))
 
     /** Opens another installed home screen (Projectivy first), or the system's home chooser. */
     fun openPreviousLauncher(): String {
+        // An explicit request to use the old home screen must not be redirected back here.
+        HomeCompatibility(context).pause()
         val homes = pm.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0)
             .map { it.activityInfo }
             .filter { it.packageName != context.packageName && it.packageName !in NOT_LAUNCHERS }

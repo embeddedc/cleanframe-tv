@@ -922,6 +922,7 @@
     return [{ id: 'android', title: '', items: [
       { action: 'android.settings', label: 'TV settings', description: 'Picture, sound, network and inputs' },
       { action: 'android.buttons', label: 'Remote buttons', description: buttonsSummary() },
+      { action: 'android.home', label: 'Home button compatibility', description: 'For TVs where Home keeps opening Google TV' },
       { action: 'android.previous', label: 'Previous launcher', description: 'Open the home screen you used before CleanFrame TV' }
     ] }];
   }
@@ -990,6 +991,7 @@
     else if (item.action === 'background.rotation') openAppearance('rotation');
     else if (item.action === 'android.settings') perform('TV settings', FrameDevice.settings);
     else if (item.action === 'android.previous') perform('Previous launcher', FrameDevice.previousLauncher);
+    else if (item.action === 'android.home') perform('Home button compatibility', FrameDevice.homeSettings);
     else if (item.action === 'android.buttons') openAppearance('buttons');
     else if (item.action === 'buttons.service') perform('Accessibility settings', FrameDevice.accessibilitySettings);
     else if (item.action === 'buttons.add') learnButton();

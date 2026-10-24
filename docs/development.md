@@ -44,6 +44,16 @@ Permissions: `INTERNET` (Bing photos only), `KILL_BACKGROUND_PROCESSES` (hold-to
 
 The feed is `https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=8&mkt=<language-COUNTRY>` and each image `https://www.bing.com<urlbase>_1920x1080.jpg`. Android TV draws its interface at 1080p on nearly all devices (video uses a separate plane), so larger images would only cost memory. Each new photo is processed once on a background thread: cover crop, background, thumbnail, field blur, frost, soft study and clear materials, the small panel image, and tone/ink values computed from luminance under the text areas. The interface reports its photo source with `setPhotoSource`; only while it is `bing` does the launcher check for new photos (on Home, at most every 12 hours), and choosing Bing in Settings fetches immediately. The newest eight are kept. Failures keep the previous photos; with none, the built-in wallpapers are used.
 
+### Google TV Home compatibility
+
+`HomeCompatibilityService` is a separate, opt-in accessibility service restricted to Google TV
+window-state events. `HomeRedirectPolicy` holds the pure matching/cooldown/loop protection rules;
+`HomeCompatibility` persists opt-in and recent attempt times. `HomeSettingsActivity` provides a
+native setup/recovery screen reached through the bridge's `openHomeSettings` method. It remains
+usable without the WebView. See [TCL compatibility](tcl-compatibility.md) for constraints and testing.
+This service does not change system Home preferences or disable any packages. The key-remapping
+service remains separate and continues receiving no window events.
+
 ## Build
 
 Requirements: JDK 21, Android SDK platform 36 and build tools 36.1.0 (set `ANDROID_HOME` or `android/local.properties`). The Gradle wrapper is pinned by checksum.
@@ -54,6 +64,10 @@ cd android && ./gradlew testReleaseUnitTest  # Kotlin unit tests
 ```
 
 ### Signing
+
+Debug builds use application ID `io.github.mdrzn.cleanframetv.tcl` and label **CleanFrame TV TCL
+Preview**, allowing testing alongside the upstream-signed release. Activity class names retain the
+original namespace; use fully qualified component names when launching the preview with ADB.
 
 Without a key, release builds are signed with the debug key. To sign with your own key, create `~/.config/cleanframe-tv/keystore.properties` (outside the repository, `chmod 600`):
 

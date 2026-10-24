@@ -89,6 +89,7 @@ function installHarness({ seed, legacy, mock, catalog, photos, config, is24, min
     launch(appId) { tv.calls.push(['launch', appId]); return tv.launchFailure ? 'App unavailable for QA' : ''; },
     closeApp(appId) { tv.calls.push(['closeApp', appId]); return appId.indexOf('input.') === 0 ? 'Inputs can’t be closed.' : ''; },
     openSettings() { tv.calls.push(['openSettings']); return tv.launchFailure ? 'Settings unavailable for QA' : ''; },
+    openHomeSettings() { tv.calls.push(['openHomeSettings']); return tv.launchFailure ? 'Home settings unavailable for QA' : ''; },
     openPreviousLauncher() { tv.calls.push(['openPreviousLauncher']); return tv.launchFailure ? 'Previous launcher unavailable for QA' : ''; },
     is24Hour() { tv.reads.is24++; return tv.is24; },
     photosJson() { tv.reads.photos++; return JSON.stringify(tv.photos); },
@@ -366,6 +367,18 @@ try {
     check('A cached Home app still opens', same(await lastCall(), ['launch', PACKAGE.netflix]), await lastCall());
     await library();
     check('All apps reports the failure with a retry', (await call('actions')).includes('apps.retry'));
+  });
+  await run('Home compatibility setup in Settings', async () => {
+    await page(); await group('android');
+    check('Home compatibility setup is reachable', (await call('actions')).includes('android.home'));
+    check('Browsing does not enable compatibility', (await calls()).length === 0);
+    await act('android.home');
+    check('OK opens the native setup screen once', same(await calls(), [['openHomeSettings']]));
+    await current.evaluate(() => { window.__tv.launchFailure = true; });
+    await act('android.home');
+    check('Native setup failure is shown', (await state()).view === 'message');
+    await nav('back');
+    check('Failure returns focus to compatibility setup', (await state()).settingsGroup === 'android' && (await state()).focusAction === 'android.home');
   });
   await run('Remote buttons in Settings', async () => {
     const learned = (code, name) => current.evaluate(([code, name]) => window.dispatchEvent(new CustomEvent('cleanframe:button-learned', { detail: { code, name } })), [code, name]);

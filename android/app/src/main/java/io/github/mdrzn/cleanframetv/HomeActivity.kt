@@ -128,6 +128,7 @@ class HomeActivity : Activity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        setIntent(intent)
         takeDebug(intent)
         takeConfig(intent)
         // Home pressed while already home: close panels and Photo mode.
@@ -137,6 +138,7 @@ class HomeActivity : Activity() {
     override fun onResume() {
         super.onResume()
         if (forwarded) return
+        visible = true
         web?.onResume()
         web?.requestFocus()
         feed.refresh(force = false)
@@ -144,6 +146,7 @@ class HomeActivity : Activity() {
 
     override fun onPause() {
         if (forwarded) { super.onPause(); return }
+        visible = false
         // Leaving Home (e.g. for Accessibility settings) ends "Press a remote button".
         KeyRemapService.cancelLearning()
         web?.onPause()
@@ -218,5 +221,7 @@ class HomeActivity : Activity() {
     companion object {
         const val HOST = "appassets.androidplatform.net"
         const val DEBUG = "debug"
+        @Volatile var visible = false
+            private set
     }
 }

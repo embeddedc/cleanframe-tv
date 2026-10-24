@@ -37,6 +37,12 @@ android {
     }
 
     buildTypes {
+        debug {
+            // A local build cannot update the upstream-signed APK. Keep both installs and their
+            // settings separate so this compatibility preview can be removed without data loss.
+            applicationIdSuffix = ".tcl"
+            versionNameSuffix = "-tcl-preview"
+        }
         release {
             isMinifyEnabled = false
             signingConfig = if (signing.isEmpty) signingConfigs.getByName("debug") else signingConfigs.getByName("release")

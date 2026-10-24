@@ -118,6 +118,7 @@
     launchApp(chosen[brand], done);
   }
   function settings(done) { call('openSettings', done); }
+  function homeSettings(done) { call('openHomeSettings', done); }
   /* Remote buttons (Settings → Android TV): Android's accessibility service catches the assigned keys. */
   var NO_BUTTONS = 'Preview: remote buttons need the TV.';
   function buttons() {
@@ -164,7 +165,7 @@
   window.FrameDevice = {
     primaryApps: primaryApps, brandIds: brandIds, apps: apps, launch: launch, launchApp: launchApp, closeApp: closeApp, settings: settings,
     buttons: buttons, learnButton: learnButton, cancelLearnButton: cancelLearnButton, setButton: setButton, accessibilitySettings: accessibilitySettings,
-    previousLauncher: previousLauncher, is24Hour: is24Hour, photos: photos, refreshPhotos: refreshPhotos, photoSource: photoSource,
+    previousLauncher: previousLauncher, homeSettings: homeSettings, is24Hour: is24Hour, photos: photos, refreshPhotos: refreshPhotos, photoSource: photoSource,
     takeConfig: takeConfig, android: !!bridge()
   };
 })();

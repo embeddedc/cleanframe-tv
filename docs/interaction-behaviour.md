@@ -36,6 +36,15 @@ Add a button shows "Press a remote button". The next assignable key goes to Clea
 
 With the service enabled, an assigned button opens its app or input from anywhere, before the TV's own handler sees it. Unassigned keys behave as before. Assignments can also be made from a computer (see the [install guide](install.md#remote-buttons)).
 
+## Google TV Home compatibility
+
+Settings → Android TV → Home button compatibility opens a native setup screen. The mode is off
+until the user turns it on and enables its separate accessibility service. On supported Google TV
+Home window events it opens CleanFrame; the stock launcher stays enabled. Returning to Google TV
+with Back is also redirected. Profiles, dashboard and unrelated apps are ignored. Rapid repeated
+redirects pause the feature, with a reason shown in setup. Previous launcher turns compatibility off.
+See [TCL compatibility](tcl-compatibility.md) for activation, limitations and recovery.
+
 ## Settings and appearance
 
 Settings opens a grouped overview: Background, Layout, Typography, Focus, Apps on Home and Android TV. OK opens a group. Appearance groups use a two-pane screen with visible choices on the left and the committed Home preview on the right.

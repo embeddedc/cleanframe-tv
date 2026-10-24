@@ -29,6 +29,7 @@ function fakeBridge(apps, extra = {}) {
     setPhotoSource: (source) => { calls.push(['source', source]); },
     closeApp: (id) => { calls.push(['close', id]); return id.indexOf('input.') === 0 ? 'Inputs can’t be closed.' : ''; },
     openSettings: () => { calls.push(['settings']); return ''; },
+    openHomeSettings: () => { calls.push(['homeSettings']); return ''; },
     openPreviousLauncher: () => { calls.push(['previous']); return ''; },
     is24Hour: () => true,
     photosJson: () => '[]',
@@ -80,6 +81,17 @@ dev.closeApp('input.hw5', (err) => { result = err; });
 assert.match(result.message, /Inputs/);
 assert.deepEqual(plain(bridge.calls), [['launch', 'org.smarttube.stable'], ['launch', 'broken.app'], ['settings'], ['close', 'com.amazon.amazonvideo.livingroom'], ['close', 'input.hw5']]);
 assert.equal(dev.is24Hour(), true);
+
+// Home compatibility opens an explicit native setup flow; no browser success is simulated.
+dev.homeSettings((err) => { result = err; });
+assert.equal(result, null);
+assert.deepEqual(plain(bridge.calls.at(-1)), ['homeSettings']);
+load(null).homeSettings((err) => { result = err; });
+assert.match(result.message, /Preview/);
+load(fakeBridge(installed, { openHomeSettings: () => 'Settings unavailable' })).homeSettings((err) => { result = err; });
+assert.equal(result.message, 'Settings unavailable');
+load(fakeBridge(installed, { openHomeSettings: () => { throw new Error('Native failure'); } })).homeSettings((err) => { result = err; });
+assert.match(result.message, /TV did not respond/);
 
 // A bridge exception while reading the catalogue is reported, not thrown, so All apps can retry.
 dev = load(fakeBridge(installed, { appsJson: () => { throw new Error('Java exception was raised during method invocation'); } }));

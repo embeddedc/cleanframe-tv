@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">CleanFrame TV TCL Preview</string>
+    <string name="home_service_label">CleanFrame TCL Home compatibility</string>
+    <string name="home_compatibility_needs_service">Next: open Accessibility settings and enable CleanFrame TCL Home compatibility, then return here.</string>
+</resources>
