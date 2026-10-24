@@ -91,6 +91,8 @@
     return out;
   }
   function brandIds() { return BRANDS.map(function (brand) { return brand.id; }); }
+  /* Icon-only overrides keep existing package ids and saved Home positions unchanged. */
+  function iconMark(appId) { return appId === 'com.tcl.tv' ? 'tv' : ''; }
   function apps(done) {
     var list, chosen, brandOf = {};
     /* A Java exception in the bridge arrives as a thrown Error; report it so All apps offers a retry. */
@@ -163,7 +165,7 @@
   }
 
   window.FrameDevice = {
-    primaryApps: primaryApps, brandIds: brandIds, apps: apps, launch: launch, launchApp: launchApp, closeApp: closeApp, settings: settings,
+    primaryApps: primaryApps, brandIds: brandIds, iconMark: iconMark, apps: apps, launch: launch, launchApp: launchApp, closeApp: closeApp, settings: settings,
     buttons: buttons, learnButton: learnButton, cancelLearnButton: cancelLearnButton, setButton: setButton, accessibilitySettings: accessibilitySettings,
     previousLauncher: previousLauncher, homeSettings: homeSettings, is24Hour: is24Hour, photos: photos, refreshPhotos: refreshPhotos, photoSource: photoSource,
     takeConfig: takeConfig, android: !!bridge()

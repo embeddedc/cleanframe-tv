@@ -1,8 +1,9 @@
 # TCL / Google TV compatibility preview
 
-This is an experimental fallback, not a verified TCL support release. Keep the stock Google TV
-launcher installed and enabled. The preview never changes package enabled states or system Home
-preferences. It installs separately from the upstream release and starts with fresh settings.
+This preview has been tested on one TCL Smart TV Pro running Android 11. It supports direct Home
+selection after manual ADB setup, or an optional redirect while Google TV stays enabled. The app
+itself never changes package enabled states or system Home preferences. It installs separately
+from the upstream release and starts with fresh settings. Other firmware remains unverified.
 
 ## Evidence and limits
 
@@ -41,9 +42,30 @@ accessibility registration connected it. Live checks on this TCL then confirmed:
 The owner also confirmed that the physical remote's Home button redirects to CleanFrame.
 Normal Home presses appear smooth on the tested TV, but returning from Settings can briefly show
 Google TV before the redirect. This preview does not intercept the physical Home key directly.
-Restart persistence and extended use still require separate confirmation.
 
-## How it works
+A later controlled test disabled LauncherX for user 0. Home from Settings returned to the already
+running CleanFrame, although Android's HOME resolver selected Google's `RecoveryActivity`.
+After rebooting in that state, boot completed but LauncherX was enabled again and foregrounded.
+The compatibility opt-in and enabled-service entry survived, but `accessibility_enabled` was 0
+and the service was not bound. Reconnecting the accessibility registration restored Home redirection
+from Settings. The retained logs do not identify what changed the package state; they do not prove
+that a watchdog or bootloader lock caused it.
+
+The owner subsequently disabled **both** `com.google.android.apps.tv.launcherx` and
+`com.google.android.tungsten.setupwraith` and reported success across reboot. ADB inspection
+confirmed both packages disabled, HOME resolving directly to this preview's `HomeActivity`, and
+Home from Android Settings returning to CleanFrame. The reboot result is owner-reported; no second
+automated reboot was performed. The existing compatibility service was still enabled during the
+inspection, but its Google TV event target was disabled. This is not proof of compatibility with
+other TCL models, future firmware updates, or long-term use.
+
+The separate TCL Guard check found `AUTO_START` unsupported but `APP_AUTO_START` supported and
+set to `ignore` for this preview. `APP_ASSOC_START` also defaulted to `ignore`. These permissions
+were not changed for the successful direct-Home check. Process protection and Home resolution
+are separate concerns; neither startup permission nor a Guard whitelist is established here as
+the cause of LauncherX's earlier re-enabling.
+
+## How the optional redirect works
 
 - Settings → Android TV → **Home button compatibility** opens a native setup/recovery screen.
 - Compatibility is off by default. Both the in-app switch and the separate Android accessibility
@@ -80,8 +102,8 @@ Signing uses the local Android debug keystore outside this repository; retain it
 
 ## Install and test
 
-Replace `<tv-address>:<port>` with the connected TV's ADB address. First verify Google TV is enabled
-and working. Do not disable any launcher or setup package for this test.
+Replace `<tv-address>:<port>` with the connected TV's ADB address. Install and open the preview
+before changing Home routing. Confirm remote navigation, All apps and TV settings work.
 
 ```sh
 adb -s <tv-address>:<port> install -r dist/CleanFrameTV-TCL-preview.apk
@@ -90,6 +112,38 @@ adb -s <tv-address>:<port> shell am start -n io.github.mdrzn.cleanframetv.tcl/io
 
 The package ends in `.tcl`, but Kotlin activity/service names retain their original namespace.
 Do not use `.HomeActivity` shorthand with the preview package.
+
+### Direct Home on the tested TCL
+
+The owner used these two commands after confirming CleanFrame works and ADB is available:
+
+```sh
+adb -s <tv-address>:<port> shell pm disable-user --user 0 com.google.android.apps.tv.launcherx
+adb -s <tv-address>:<port> shell pm disable-user --user 0 com.google.android.tungsten.setupwraith
+```
+
+Disabling only LauncherX left Google's higher-priority recovery activity as the HOME candidate.
+With both disabled on this TV, verify resolution before testing Home or rebooting:
+
+```sh
+adb -s <tv-address>:<port> shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME
+```
+
+Expected component:
+
+```text
+io.github.mdrzn.cleanframetv.tcl/io.github.mdrzn.cleanframetv.HomeActivity
+```
+
+Test the physical Home button from Settings and another app. For a reboot test, allow the package
+changes time to persist, then recheck disabled state and Home resolution after boot. The owner
+reports persistence on this TV. Keep the recovery commands below available: these commands also
+disable Google's setup/recovery UI, and behavior may differ on other firmware. Both packages remain
+installed and can be re-enabled. The app's **Previous launcher** button cannot re-enable them.
+
+### Optional redirect with Google TV enabled
+
+Use this route when keeping both Google packages enabled. It is separate from direct Home setup.
 
 1. Verify the preview opens and remote navigation, All apps and TV settings work normally.
 2. Open Settings → Android TV → Home button compatibility. Select **Turn on compatibility**.
@@ -112,6 +166,14 @@ adb -s <tv-address>:<port> logcat -d -s CleanFrameTV:I AndroidRuntime:E
 
 ## Recovery
 
+If using direct Home, first restore both Google packages before removing CleanFrame or attempting
+to return to Google TV:
+
+```sh
+adb -s <tv-address>:<port> shell pm enable --user 0 com.google.android.tungsten.setupwraith
+adb -s <tv-address>:<port> shell pm enable --user 0 com.google.android.apps.tv.launcherx
+```
+
 Turn off **CleanFrame TCL Home compatibility** in Android Accessibility settings, or open the
 native setup screen directly (it does not need a working WebView):
 
@@ -128,7 +190,8 @@ adb -s <tv-address>:<port> shell am start -n com.google.android.apps.tv.launcher
 ```
 
 To remove the preview and its test settings, uninstall `io.github.mdrzn.cleanframetv.tcl`.
-This leaves the upstream CleanFrame installation and Google TV intact.
+This leaves the upstream CleanFrame installation intact. Uninstalling the preview does not
+re-enable packages disabled through ADB; restore them first as shown above.
 
 ## References
 
